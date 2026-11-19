@@ -1471,7 +1471,8 @@ async function processSelectedGeneratorFile(file) {
         const category = isVideo ? 'VIDEO' : isPdf ? 'PDF' : 'PHOTO';
 
         document.getElementById('gen-share-url-input').value = linkData.shareUrl;
-        document.getElementById('link-open-cloud-viewer').href = linkData.shareUrl;
+        const viewerLinkEl = document.getElementById('link-open-cloud-viewer');
+if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
         document.getElementById('gen-share-link-box').classList.remove('hidden');
         document.getElementById('btn-inline-full-preview').classList.remove('hidden');
         document.getElementById('btn-test-file-preview').classList.remove('hidden');

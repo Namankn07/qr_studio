@@ -4,7 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>QR Studio — Unlimited QR Generator &amp; Scanner</title>
-
+<meta name="description" content="Free Online QR Code Generator & Scanner. Convert Photos, PDFs, Videos, Wi-Fi, and Links into instant high-resolution scannable QR codes." />
+  <meta name="keywords" content="free qr code generator, pdf to qr code, photo to qr code, video qr maker, online qr scanner, qr studio" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:title" content="QR Studio — Free Photo, PDF & Video QR Generator" />
+  <meta property="og:description" content="Upload any Photo, PDF, or Video and generate a permanent scannable QR code in seconds." />
+  <meta property="og:type" content="website" />
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -2996,6 +3001,36 @@ if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
     function copyActiveVideoUrl() {
       if (currentActiveVideoUrl) copyTextToClipboard(currentActiveVideoUrl, 'Video link copied!');
     }
+    // =========================================================================
+    // AUTOMATED MONETIZATION LOADER (ZERO MAINTENANCE)
+    // =========================================================================
+    (async function initAutomatedMonetization() {
+      try {
+        const res = await fetch('/api/monetization-config');
+        const cfg = await res.json();
+
+        // Automatically inject Adsterra / Monetag script if configured in Render Env
+        if (cfg.adScriptUrl) {
+          const s = document.createElement('script');
+          s.src = cfg.adScriptUrl;
+          s.async = true;
+          document.body.appendChild(s);
+        }
+
+        // Automatically show optional "Support Creator" UPI button in footer if UPI ID is set
+        if (cfg.upiId) {
+          const footer = document.querySelector('footer');
+          if (footer) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition';
+            btn.textContent = '☕ Support Creator (UPI)';
+            btn.onclick = () => copyTextToClipboard(cfg.upiId, `UPI ID copied: ${cfg.upiId}`);
+            footer.appendChild(btn);
+          }
+        }
+      } catch (e) {}
+    })();
   </script>
 </body>
 </html>

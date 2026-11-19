@@ -11,25 +11,23 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Load all configured Cloudinary accounts (Primary + Unlimited Extra Pool Accounts)
+// Load all configured Cloudinary accounts (Primary + Extra Pool Accounts)
 function getCloudPool() {
   const accounts = [];
 
-  // 1. Primary Account (Already set on Render)
   if (
     process.env.CLOUDINARY_CLOUD_NAME &&
     process.env.CLOUDINARY_API_KEY &&
     process.env.CLOUDINARY_API_SECRET
   ) {
     accounts.push({
-      name: 'Uploaded Video',
+      name: 'Cloud-Node-1',
       cloudName: process.env.CLOUDINARY_CLOUD_NAME.trim(),
       apiKey: process.env.CLOUDINARY_API_KEY.trim(),
       apiSecret: process.env.CLOUDINARY_API_SECRET.trim(),
     });
   }
 
-  // 2. Extra Unlimited Accounts: CLOUDINARY_URL_2, CLOUDINARY_URL_3, ... (Format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME)
   Object.keys(process.env)
     .filter((k) => /^CLOUDINARY_URL_\d+$/.test(k))
     .sort()
@@ -49,6 +47,34 @@ function getCloudPool() {
   return accounts;
 }
 
+// Automated SEO: robots.txt & sitemap.xml for Google Indexing
+app.get('/robots.txt', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  res.type('text/plain');
+  res.send(`User-agent: *\nAllow: /\nSitemap: ${baseUrl}/sitemap.xml\n`);
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  res.type('application/xml');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>`);
+});
+
+// Public Config Endpoint (Injects Ad Script from Render Env without touching code)
+app.get('/api/monetization-config', (req, res) => {
+  res.json({
+    adScriptUrl: (process.env.AD_SCRIPT_URL || '').trim(),
+    upiId: (process.env.CREATOR_UPI_ID || '').trim(),
+  });
+});
+
 // Check active cloud pool capacity
 app.get('/api/cloud-status', (req, res) => {
   const pool = getCloudPool();
@@ -67,7 +93,6 @@ app.post('/api/sign-upload', (req, res) => {
       return res.status(500).json({ error: 'No cloud storage nodes configured.' });
     }
 
-    // Distribute uploads evenly across all active accounts
     const selected = pool[Math.floor(Math.random() * pool.length)];
     const timestamp = Math.round(Date.now() / 1000);
     const folder = 'qr_studio_uploads';
@@ -102,7 +127,7 @@ app.post('/api/create-share-link', (req, res) => {
   res.json({ success: true, shareUrl });
 });
 
-// 3. Permanent Shared File Viewer (Photo, PDF & Compressed Smooth Video)
+// 3. Self-Promoting & Monetized Shared File Viewer (/view)
 app.get('/view', (req, res) => {
   const { u, t, n } = req.query;
   if (!u) return res.status(400).send('<h2>Invalid QR Link</h2>');
@@ -121,8 +146,8 @@ app.get('/view', (req, res) => {
   const title = (n || 'Shared File').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const isPdf = t === 'pdf' || cloudUrl.toLowerCase().endsWith('.pdf');
   const isVideo = t === 'video' || /\.(mp4|webm|mov|mkv|avi)$/i.test(cloudUrl);
+  const adScriptUrl = (process.env.AD_SCRIPT_URL || '').trim();
 
-  // Automatic smart compression & adaptive streaming for fast playback
   const optimizedVideoUrl = isVideo
     ? cloudUrl.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
     : cloudUrl;
@@ -139,33 +164,51 @@ app.get('/view', (req, res) => {
     mediaMarkup = `<img src="${cloudUrl}" alt="${title}" />`;
   }
 
+  const adTag = adScriptUrl
+    ? `<script async src="${adScriptUrl.replace(/"/g, '&quot;')}"></script>`
+    : '';
+
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${title} — QR Studio</title>
+  ${adTag}
   <style>
     body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #090d16; color: #f8fafc; display: flex; flex-direction: column; min-height: 100vh; }
     header { padding: 14px 20px; background: #111827; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1f2937; gap: 12px; }
     h1 { font-size: 1rem; margin: 0; word-break: break-word; }
-    a.btn { background: #10b981; color: #fff; text-decoration: none; padding: 9px 16px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; white-space: nowrap; }
-    main { flex: 1; display: flex; justify-content: center; align-items: center; padding: 16px; }
-    img, video { max-width: 100%; max-height: 84vh; border-radius: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.65); background: #000; }
+    .actions { display: flex; gap: 10px; align-items: center; }
+    a.btn { background: #10b981; color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 10px; font-weight: 600; font-size: 0.82rem; white-space: nowrap; }
+    a.btn-secondary { background: #4f46e5; color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 10px; font-weight: 600; font-size: 0.82rem; white-space: nowrap; }
+    main { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 16px; gap: 16px; }
+    img, video { max-width: 100%; max-height: 78vh; border-radius: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.65); background: #000; }
     video { width: 100%; max-width: 960px; outline: none; }
-    iframe { width: 100%; height: 84vh; border: none; border-radius: 14px; background: #fff; }
+    iframe { width: 100%; height: 78vh; border: none; border-radius: 14px; background: #fff; }
+    footer { padding: 14px 20px; background: #0f172a; border-top: 1px solid #1e293b; text-align: center; font-size: 0.82rem; color: #94a3b8; }
+    footer a { color: #818cf8; font-weight: 600; text-decoration: none; }
   </style>
 </head>
 <body>
   <header>
     <h1>${title}</h1>
-    <a class="btn" href="${cloudUrl}" target="_blank" download>Download</a>
+    <div class="actions">
+      <a class="btn-secondary" href="/">+ Create Free QR</a>
+      <a class="btn" href="${cloudUrl}" target="_blank" download>Download</a>
+    </div>
   </header>
-  <main>${mediaMarkup}</main>
+  <main>
+    ${mediaMarkup}
+  </main>
+  <footer>
+    Powered by <a href="/">QR Studio</a> — Convert any Photo, PDF, Video, or Link into a scannable QR code for free.
+  </footer>
 </body>
 </html>`);
 });
-// 4. Permanently Delete Video/File from Cloudinary Cloud Node (Frees up 25GB Storage)
+
+// 4. Permanently Delete Video/File from Cloudinary
 app.post('/api/delete-cloud-media', async (req, res) => {
   try {
     const { cloudUrl } = req.body;
@@ -173,7 +216,6 @@ app.post('/api/delete-cloud-media', async (req, res) => {
       return res.json({ success: true, skipped: true });
     }
 
-    // Extract cloudName, resourceType (video/image/raw), and public_id from Cloudinary URL
     const match = cloudUrl.match(
       /^https:\/\/res\.cloudinary\.com\/([^/]+)\/(video|image|raw)\/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z0-9]+$/
     );
@@ -187,7 +229,7 @@ app.post('/api/delete-cloud-media', async (req, res) => {
     const node = pool.find((p) => p.cloudName === cloudName);
 
     if (!node) {
-      return res.status(404).json({ error: 'Matching Cloud Node credentials not found on server' });
+      return res.status(404).json({ error: 'Matching Cloud Node credentials not found' });
     }
 
     const timestamp = Math.round(Date.now() / 1000);
@@ -220,10 +262,11 @@ app.post('/api/delete-cloud-media', async (req, res) => {
     res.status(500).json({ error: 'Server error while deleting from cloud' });
   }
 });
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {
-  console.log(`QR Studio server running on port ${PORT} with ${getCloudPool().length} cloud node(s)`);
+  console.log(`QR Studio running on port ${PORT}`);
 });

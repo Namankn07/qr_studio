@@ -610,16 +610,6 @@
             type="button"
             id="btn-toggle-sound"
             onclick="toggleBeepSound()"
-            class="self-start sm:self-auto px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-300 flex items-center gap-2 transition"
-          >
-            <svg id="icon-sound-on" class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-            </svg>
-            <svg id="icon-sound-off" class="w-4 h-4 text-slate-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-            </svg>
-            <span id="sound-status-text">Scan Beep: ON</span>
-          </button>
         </div>
 
         <!-- Scanner Sub-Mode Switcher -->
@@ -782,15 +772,7 @@
         </div>
       </div>
 
-      <!-- Right Column: Decoded Output Panel -->
-      <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-bold text-white">Decoded QR Result</span>
-            <span id="scan-status-pill" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400">
-              Waiting for QR...
-            </span>
-          </div>
+ 
           
 
         <!-- Decoded Data Text Box -->
@@ -2475,41 +2457,6 @@ if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
       showToast('Loaded scanned data into QR Generator!', 'info');
     }
 
-    // =========================================================================
-    // WEB AUDIO API SUBTLE SCAN BEEP
-    // =========================================================================
-    function toggleBeepSound() {
-      isBeepEnabled = !isBeepEnabled;
-      document.getElementById('sound-status-text').textContent = isBeepEnabled ? 'Scan Beep: ON' : 'Scan Beep: OFF';
-      document.getElementById('icon-sound-on').classList.toggle('hidden', !isBeepEnabled);
-      document.getElementById('icon-sound-off').classList.toggle('hidden', isBeepEnabled);
-    }
-
-    function playScanBeep() {
-      if (!isBeepEnabled) return;
-      try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.09);
-
-        gain.gain.setValueAtTime(0.12, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start();
-        osc.stop(ctx.currentTime + 0.15);
-      } catch (e) {
-        // Ignore audio context restrictions
-      }
-    }
 
     // =========================================================================
     // TAB 3: UNLIMITED LOCAL STORAGE HISTORY

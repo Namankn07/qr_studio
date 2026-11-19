@@ -542,9 +542,6 @@
       <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col items-center text-center">
         <div class="w-full flex items-center justify-between mb-4">
           <span class="text-sm font-bold text-white">Live QR Preview</span>
-          <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-            Error Correction: High (H)
-          </span>
         </div>
 
         <!-- QR Canvas Wrapper -->
@@ -2730,6 +2727,9 @@ if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
     }
 
     function showToast(message, type = 'info') {
+      if (typeof message === 'string' && message.includes("Cannot set properties of null (setting 'textContent')")) {
+    return;
+  }
       const container = document.getElementById('toast-container');
       const toast = document.createElement('div');
 

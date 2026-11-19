@@ -3031,6 +3031,37 @@ if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
         }
       } catch (e) {}
     })();
+    (function loadAdsterraBanner() {
+      const footer = document.querySelector('footer');
+      if (!footer) return;
+      const box = document.createElement('div');
+      box.className = 'mb-3 flex justify-center overflow-x-auto';
+      const optScript = document.createElement('script');
+      optScript.text = `atOptions = {'key':'40bec14a9daa6fee69195e62b0bdf3d4','format':'iframe','height':60,'width':468,'params':{}};`;
+      const invokeScript = document.createElement('script');
+      invokeScript.src = 'https://www.highperformanceformat.com/40bec14a9daa6fee69195e62b0bdf3d4/invoke.js';
+      box.appendChild(optScript);
+      box.appendChild(invokeScript);
+      footer.prepend(box);
+    })();
+    (function enhanceShareExperience() {
+      const footer = document.querySelector('footer');
+      if (!footer || document.getElementById('btn-copy-invite-msg')) return;
+
+      const inviteBtn = document.createElement('button');
+      inviteBtn.id = 'btn-copy-invite-msg';
+      inviteBtn.type = 'button';
+      inviteBtn.className = 'mt-2 ml-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium transition';
+      inviteBtn.textContent = 'Copy Share Note';
+
+      inviteBtn.onclick = () => {
+        const origin = window.location.origin;
+        const msg = `Free QR Code Generator & Scanner (Photo, PDF, Video, Link, Wi-Fi): ${origin}`;
+        copyTextToClipboard(msg, 'Share message copied!');
+      };
+
+      footer.appendChild(inviteBtn);
+    })();
   </script>
 </body>
 </html>

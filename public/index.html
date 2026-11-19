@@ -221,7 +221,7 @@
             <input
               type="file"
               id="gen-file-input"
-              accept="image/*,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.gif"
+              accept="image/*,video/*,application/pdf,.pdf,.png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.mov"
               onchange="handleGeneratorFileSelect(event)"
               class="hidden"
             />
@@ -1301,12 +1301,18 @@
       return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
     }
 
-    async function processSelectedGeneratorFile(file) {
+async function processSelectedGeneratorFile(file) {
       const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(file.name);
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
-      if (!isImage && !isPdf) {
-        showToast('Please select a Photo (JPG, PNG, WEBP, GIF) or PDF document.', 'error');
+      if (!isImage && !isVideo && !isPdf) {
+        showToast('Please select a Photo, Video (MP4/MOV/WEBM), or PDF document.', 'error');
+        return;
+      }
+
+      if (file.size > 100 * 1024 * 1024) {
+        showToast('Max file size is 100MB on free cloud plan.', 'error');
         return;
       }
 
@@ -1330,7 +1336,13 @@
       nameEl.textContent = file.name;
       titleInput.value = file.name.replace(/\.[^/.]+$/, '');
 
-      if (isImage) {
+      if (isVideo) {
+        badge.textContent = 'VIDEO';
+        badge.className = 'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30';
+        metaInfo.textContent = `MP4/Video • ${formatFileSize(file.size)}`;
+        pdfIcon.innerHTML = `<span class="text-2xl">🎬</span><span class="text-[10px] font-bold mt-0.5">VIDEO</span>`;
+        pdfIcon.classList.remove('hidden');
+      } else if (isImage) {
         badge.textContent = 'PHOTO';
         badge.className = 'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
         metaInfo.textContent = formatFileSize(file.size);
@@ -1367,19 +1379,17 @@
             await page.render({ canvasContext: ctx, viewport }).promise;
             pdfIcon.classList.add('hidden');
             pdfThumb.classList.remove('hidden');
-          } catch (pdfErr) {
-            // Keep PDF icon fallback if encrypted/complex
-          }
+          } catch (pdfErr) {}
         }
       }
 
-      // Immediately save & generate QR code on file selection so preview works right away!
       await uploadSelectedFileAndGenerateQR();
     }
 
+    // DIRECT BROWSER-TO-CLOUDINARY UPLOAD WITH REAL PERCENTAGE PROGRESS
     async function uploadSelectedFileAndGenerateQR() {
       if (!selectedGeneratorFile) {
-        showToast('Please select a Photo or PDF file first.', 'error');
+        showToast('Please select a Photo, Video, or PDF first.', 'error');
         document.getElementById('gen-file-input').click();
         return;
       }
@@ -1393,62 +1403,99 @@
       btn.disabled = true;
       btn.classList.add('opacity-60', 'pointer-events-none');
       progressWrap.classList.remove('hidden');
-      progressBar.style.width = '10%';
-      progressPct.textContent = '10%';
+      progressBar.style.width = '5%';
+      progressPct.textContent = '5%';
+      progressLabel.textContent = 'Preparing secure cloud upload...';
 
       try {
-        const title = document.getElementById('gen-file-title').value.trim();
-        const description = document.getElementById('gen-file-desc').value.trim();
+        const title = document.getElementById('gen-file-title').value.trim() || selectedGeneratorFile.name;
+        const isVideo = selectedGeneratorFile.type.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(selectedGeneratorFile.name);
+        const isPdf = selectedGeneratorFile.type === 'application/pdf' || selectedGeneratorFile.name.toLowerCase().endsWith('.pdf');
+        const resourceType = isVideo ? 'video' : isPdf ? 'raw' : 'image';
+        const fileTypeTag = isVideo ? 'video' : isPdf ? 'pdf' : 'img';
 
-        const record = await window.qrFileStorage.uploadSharedFile(
-          selectedGeneratorFile,
-          {
-            title,
-            description,
-            pageCount: selectedGeneratorFileMeta.pageCount,
-            dimensions: selectedGeneratorFileMeta.dimensions,
-          },
-          (pct, label) => {
-            progressBar.style.width = `${pct}%`;
-            progressPct.textContent = `${pct}%`;
-            if (label) progressLabel.textContent = label;
-          }
-        );
+        // 1. Get signature from backend
+        const signRes = await fetch('/api/sign-upload', { method: 'POST' });
+        const signData = await signRes.json();
+        if (!signRes.ok) throw new Error(signData.error || 'Signature failed');
 
-        lastUploadedFileRecord = record;
+        // 2. Direct upload to Cloudinary with live XMLHttpRequest progress
+        const formData = new FormData();
+        formData.append('file', selectedGeneratorFile);
+        formData.append('api_key', signData.apiKey);
+        formData.append('timestamp', signData.timestamp);
+        formData.append('signature', signData.signature);
+        formData.append('folder', signData.folder);
 
-        // Use hash-based URL (#file=<id>) so scanning or opening never causes a 404 or page reload in sandboxed previews
-        const baseUrl = window.location.origin && window.location.origin !== 'null'
-          ? `${window.location.origin}${window.location.pathname}`
-          : 'https://qrstudio.app/';
-        const shareUrl = `${baseUrl}#file=${record.id}`;
+        const cloudResult = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', `https://api.cloudinary.com/v1_1/${signData.cloudName}/${resourceType}/upload`);
 
-        document.getElementById('gen-share-url-input').value = shareUrl;
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const pct = Math.min(98, Math.round((e.loaded / e.total) * 100));
+              progressBar.style.width = `${pct}%`;
+              progressPct.textContent = `${pct}%`;
+              progressLabel.textContent = isVideo ? `Uploading Video (${pct}%)...` : `Uploading (${pct}%)...`;
+            }
+          };
+
+          xhr.onload = () => {
+            const resp = JSON.parse(xhr.responseText || '{}');
+            if (xhr.status >= 200 && xhr.status < 300 && resp.secure_url) resolve(resp);
+            else reject(new Error(resp.error?.message || 'Cloudinary upload failed'));
+          };
+
+          xhr.onerror = () => reject(new Error('Network error during upload'));
+          xhr.send(formData);
+        });
+
+        // 3. Create permanent viewer link
+        const linkRes = await fetch('/api/create-share-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cloudUrl: cloudResult.secure_url,
+            fileType: fileTypeTag,
+            title
+          })
+        });
+        const linkData = await linkRes.json();
+        if (!linkRes.ok || !linkData.success) throw new Error('Could not create share URL');
+
+        progressBar.style.width = '100%';
+        progressPct.textContent = '100%';
+        progressLabel.textContent = 'Uploaded Successfully!';
+
+        lastUploadedShareUrl = linkData.shareUrl;
+        const category = isVideo ? 'VIDEO' : isPdf ? 'PDF' : 'PHOTO';
+
+        document.getElementById('gen-share-url-input').value = linkData.shareUrl;
+        document.getElementById('link-open-cloud-viewer').href = linkData.shareUrl;
         document.getElementById('gen-share-link-box').classList.remove('hidden');
         document.getElementById('btn-inline-full-preview').classList.remove('hidden');
         document.getElementById('btn-test-file-preview').classList.remove('hidden');
 
-        // Update QR Code immediately with the live shareable viewer link
-        generateQRCode(false, shareUrl);
-        addHistoryEntry('generated', shareUrl, record.fileCategory, record.title || record.fileName);
+        generateQRCode(false, linkData.shareUrl);
+        addHistoryEntry('generated', linkData.shareUrl, category, title);
 
-        showToast(`${record.fileCategory} ready & QR code generated!`, 'success');
+        showToast(`${category} uploaded & smooth streaming QR ready!`, 'success');
       } catch (err) {
-        showToast('Could not process file. Please try again.', 'error');
+        showToast(err.message || 'Upload failed.', 'error');
       } finally {
         btn.disabled = false;
         btn.classList.remove('opacity-60', 'pointer-events-none');
         setTimeout(() => {
           progressWrap.classList.add('hidden');
-        }, 1000);
+        }, 1200);
       }
     }
 
     function openCurrentSharedPreview() {
-      if (lastUploadedFileRecord && lastUploadedFileRecord.id) {
-        openSharedViewerModal(lastUploadedFileRecord.id);
+      if (lastUploadedShareUrl) {
+        window.open(lastUploadedShareUrl, '_blank', 'noopener,noreferrer');
       } else {
-        showToast('Upload a Photo or PDF first to preview it.', 'info');
+        showToast('Upload a Photo, Video, or PDF first to preview it.', 'info');
       }
     }
 

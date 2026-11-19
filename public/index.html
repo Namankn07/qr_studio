@@ -975,16 +975,22 @@
               allowfullscreen
             ></iframe>
 
-            <div id="studio-video-placeholder" class="text-center p-6 max-w-xs">
-              <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto mb-3">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+           <div id="studio-player-stage" class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center">
+            <!-- Active media (YouTube iframe or HTML5 <video>) fills 100% of this container -->
+            <div id="studio-media-host" class="w-full h-full"></div>
+
+            <!-- Shown ONLY when no video is currently loaded -->
+            <div id="studio-empty-state" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950">
+              <div class="w-10 h-10 rounded-full bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-3">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                   <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 class="text-sm font-semibold text-white">No Video Playing</h3>
-              <p class="text-xs text-slate-400 mt-1">Upload a video, paste a link, or choose one from your library below.</p>
+              <p class="text-sm font-semibold text-slate-200">Ready to Play</p>
+              <p class="text-xs text-slate-400 mt-1">Paste a video link, open a file, or pick from Saved Videos</p>
             </div>
+          </div>
           </div>
 
           <!-- Clean Player Controls Bar -->
@@ -2937,9 +2943,7 @@ if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
       const target = lib.find((v) => v.id === id);
       if (!target) return;
 
-      if (!confirm(`"${target.title}" ko permanent delete karein? Isse Cloud storage bhi free ho jayegi.`)) {
-        return;
-      }
+     
 
       try {
         if (target.url && target.url.includes('res.cloudinary.com/')) {
@@ -3078,6 +3082,25 @@ if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
 
       footer.appendChild(inviteBtn);
     })();
+    function syncVideoPlayerStage(hasActiveVideo) {
+   const emptyEl = document.getElementById('studio-empty-state');
+   const ytEl = document.getElementById('studio-youtube-player');
+   const vidEl = document.getElementById('studio-video-player');
+   const hostEl = document.getElementById('studio-media-host');
+
+   if (emptyEl) {
+     emptyEl.classList.toggle('hidden', Boolean(hasActiveVideo));
+   }
+   if (hostEl && hasActiveVideo) {
+     if (ytEl && !ytEl.classList.contains('hidden')) {
+       ytEl.className = 'w-full h-full border-0 block';
+       hostEl.appendChild(ytEl);
+     } else if (vidEl && !vidEl.classList.contains('hidden')) {
+       vidEl.className = 'w-full h-full object-contain bg-black block';
+       hostEl.appendChild(vidEl);
+     }
+   }
+ }
   </script>
 </body>
 </html>

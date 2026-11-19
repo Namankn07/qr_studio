@@ -2923,11 +2923,49 @@ if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
       }
     }
 
-    function deleteVideoFromLib(id) {
-      const lib = JSON.parse(localStorage.getItem(VIDEO_LIB_KEY) || '[]').filter((v) => v.id !== id);
-      localStorage.setItem(VIDEO_LIB_KEY, JSON.stringify(lib));
-      renderStudioVideoLibrary();
-      showToast('Removed from library.', 'info');
+ async function deleteVideoFromLib(id) {
+      const lib = JSON.parse(localStorage.getItem(VIDEO_LIB_KEY) || '[]');
+      const target = lib.find((v) => v.id === id);
+      if (!target) return;
+
+      if (!confirm(`"${target.title}" ko permanent delete karein? Isse Cloud storage bhi free ho jayegi.`)) {
+        return;
+      }
+
+      try {
+        if (target.url && target.url.includes('res.cloudinary.com/')) {
+          showToast('Deleting from Cloud storage...', 'info');
+          const res = await fetch('/api/delete-cloud-media', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cloudUrl: target.url }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || 'Could not delete from Cloud');
+          }
+        }
+
+        const updated = lib.filter((v) => v.id !== id);
+        localStorage.setItem(VIDEO_LIB_KEY, JSON.stringify(updated));
+
+        // Reset active player if the deleted video was currently playing
+        if (currentActiveVideoUrl === target.url) {
+          const videoEl = document.getElementById('studio-video-player');
+          videoEl.pause();
+          videoEl.removeAttribute('src');
+          videoEl.load();
+          videoEl.classList.add('hidden');
+          document.getElementById('studio-video-placeholder').classList.remove('hidden');
+          document.getElementById('active-video-actions').classList.add('hidden');
+          currentActiveVideoUrl = '';
+        }
+
+        renderStudioVideoLibrary();
+        showToast('Deleted from Cloud & freed storage!', 'success');
+      } catch (err) {
+        showToast(err.message || 'Cloud delete failed.', 'error');
+      }
     }
 
     function renderStudioVideoLibrary() {

@@ -165,7 +165,61 @@ app.get('/view', (req, res) => {
 </body>
 </html>`);
 });
+// 4. Permanently Delete Video/File from Cloudinary Cloud Node (Frees up 25GB Storage)
+app.post('/api/delete-cloud-media', async (req, res) => {
+  try {
+    const { cloudUrl } = req.body;
+    if (!cloudUrl || !cloudUrl.includes('res.cloudinary.com/')) {
+      return res.json({ success: true, skipped: true });
+    }
 
+    // Extract cloudName, resourceType (video/image/raw), and public_id from Cloudinary URL
+    const match = cloudUrl.match(
+      /^https:\/\/res\.cloudinary\.com\/([^/]+)\/(video|image|raw)\/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z0-9]+$/
+    );
+
+    if (!match) {
+      return res.status(400).json({ error: 'Could not parse Cloudinary file path' });
+    }
+
+    const [, cloudName, resourceType, publicId] = match;
+    const pool = getCloudPool();
+    const node = pool.find((p) => p.cloudName === cloudName);
+
+    if (!node) {
+      return res.status(404).json({ error: 'Matching Cloud Node credentials not found on server' });
+    }
+
+    const timestamp = Math.round(Date.now() / 1000);
+    const toSign = `public_id=${publicId}&timestamp=${timestamp}${node.apiSecret}`;
+    const signature = crypto.createHash('sha1').update(toSign).digest('hex');
+
+    const formBody = new URLSearchParams({
+      public_id: publicId,
+      api_key: node.apiKey,
+      timestamp: String(timestamp),
+      signature,
+    });
+
+    const destroyRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formBody.toString(),
+      }
+    );
+
+    const destroyData = await destroyRes.json();
+    if (destroyData.result === 'ok' || destroyData.result === 'not found') {
+      return res.json({ success: true, result: destroyData.result });
+    }
+
+    return res.status(500).json({ error: destroyData.error?.message || 'Cloud deletion failed' });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error while deleting from cloud' });
+  }
+});
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

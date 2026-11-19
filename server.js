@@ -22,7 +22,7 @@ function getCloudPool() {
     process.env.CLOUDINARY_API_SECRET
   ) {
     accounts.push({
-      name: 'Cloud-Node-1',
+      name: 'Uploaded Video',
       cloudName: process.env.CLOUDINARY_CLOUD_NAME.trim(),
       apiKey: process.env.CLOUDINARY_API_KEY.trim(),
       apiSecret: process.env.CLOUDINARY_API_SECRET.trim(),

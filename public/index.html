@@ -66,6 +66,32 @@
       animation: scanline 2.4s ease-in-out infinite;
     }
   </style>
+  <style>
+  #panel-scanner > div {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) !important;
+    gap: 1.5rem !important;
+    align-items: start !important;
+  }
+
+  @media (max-width: 1023px) {
+    #panel-scanner > div {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+  }
+
+  #panel-scanner pre,
+  #panel-scanner button,
+  #panel-scanner span {
+    writing-mode: horizontal-tb !important;
+    word-break: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  #panel-scanner button {
+    white-space: nowrap !important;
+  }
+</style>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
 
@@ -605,27 +631,7 @@
             <p class="text-xs sm:text-sm text-slate-400">Scan continuously via Live Camera or upload QR Photos &amp; multi-page PDFs.</p>
           </div>
 
-          <!-- Audio Beep Mute Toggle -->
-          <button
-            type="button"
-            id="btn-toggle-sound"
-            onclick="toggleBeepSound()"
-        </div>
-
-        <!-- Scanner Sub-Mode Switcher -->
-        <div class="grid grid-cols-2 gap-2 p-1.5 bg-slate-950 rounded-xl border border-slate-800 mb-5">
-          <button
-            type="button"
-            id="subtab-btn-camera"
-            onclick="switchScannerSubMode('camera')"
-            class="p-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 bg-indigo-600 text-white shadow transition"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            <span>Live Camera Scanner</span>
-          </button>
-
+          
           <button
             type="button"
             id="subtab-btn-upload"

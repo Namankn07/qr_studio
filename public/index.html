@@ -87,7 +87,7 @@
             QR Studio
             <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">PRO</span>
           </h1>
-          <p class="text-xs text-slate-400">Upload Photo, PDF &amp; Info &bull; Unlimited QR Scan &amp; Generate</p>
+          <p class="text-xs text-slate-400">Create, scan, and share QRs &amp; videos</p>
         </div>
       </div>
 
@@ -794,12 +794,11 @@
               Waiting for QR...
             </span>
           </div>
-          <span class="text-xs text-slate-400">Session Scans: <strong id="session-scan-counter" class="text-emerald-400">0</strong></span>
-        </div>
+          
 
         <!-- Decoded Data Text Box -->
         <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 min-h-[140px] max-h-[220px] overflow-y-auto flex flex-col justify-between">
-          <pre id="decoded-output-text" class="text-sm font-mono text-slate-400 whitespace-pre-wrap break-words leading-relaxed">Scan any QR code using your camera or upload a QR Photo / PDF to extract its information instantly...</pre>
+          <pre id="decoded-output-text" class="text-sm font-mono text-slate-400 whitespace-pre-wrap break-words leading-relaxed">Scan a QR code or upload an image/PDF</pre>
         </div>
 
         <!-- Inline Shared Photo / PDF Preview Card (Shown automatically when QR links to #file=<fileId> or ?file=<fileId>) -->
@@ -872,7 +871,9 @@
           >
             <span>Copy Result</span>
           </button>
-
+          <button id="btn-open-scanned-link" type="button" onclick="openScannedUrl()" class="hidden p-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition">
+  <span>Open Link</span>
+</button>
           <button
             type="button"
             id="btn-regenerate-decoded"
@@ -1066,17 +1067,32 @@
               </button>
             </div>
           </div>
-
+<!-- Paste Video or YouTube Link (Single-step & fast) -->
+          <div class="space-y-2.5">
+            <h3 class="text-sm font-semibold text-white">Paste Video or YouTube Link</h3>
+            <div class="flex gap-2">
+              <input
+                type="url"
+                id="studio-video-url-input"
+                placeholder="https://youtube.com/... or .mp4 link"
+                class="flex-1 rounded-xl bg-slate-950 border border-slate-800 focus:border-indigo-500 px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 outline-none transition"
+              />
+              <input type="hidden" id="studio-yt-title-input" value="" />
+              <button type="button" onclick="playAndSaveExternalVideo()" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shrink-0 transition">
+                Play
+              </button>
+            </div>
+          </div>
           <hr class="border-slate-800/80" />
 
-          <!-- Play Local File -->
+    <!-- Play Local File -->
           <div>
-            <label class="w-full py-2.5 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-200 text-xs font-medium text-center cursor-pointer flex items-center justify-center gap-2 transition">
+            <label class="w-full py-2.5 px-4 rounded-xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 text-slate-200 text-xs font-medium text-center cursor-pointer flex items-center justify-center gap-2 transition">
               <input type="file" accept="video/*,.mp4,.webm,.mov,.mkv" onchange="playLocalInstantVideo(this.files[0])" class="hidden" />
-              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
               </svg>
-              <span>Play Video from Device</span>
+              <span>Open Video from Device</span>
             </label>
           </div>
         </div>
@@ -2158,18 +2174,18 @@ if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
 
     function handleSuccessfulScan(decodedData, sourceTag) {
       currentDecodedResult = decodedData;
-      sessionScanCount += 1;
+      
 
       playScanBeep();
 
       const outputEl = document.getElementById('decoded-output-text');
       const statusPill = document.getElementById('scan-status-pill');
-      const counterEl = document.getElementById('session-scan-counter');
       const copyBtn = document.getElementById('btn-copy-decoded');
       const regenBtn = document.getElementById('btn-regenerate-decoded');
       const openUrlBtn = document.getElementById('btn-open-decoded-url');
 
       outputEl.textContent = decodedData;
+      updateScannerLinkAction(decodedData);
       outputEl.classList.remove('text-slate-400');
       outputEl.classList.add('text-emerald-300');
 

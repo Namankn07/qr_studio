@@ -2237,56 +2237,17 @@ if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
       ctx.restore();
     }
 function handleSuccessfulScan(decodedData, sourceTag) {
-   currentDecodedResult = decodedData;
-
-   const outputEl = document.getElementById('decoded-output-text');
-   const statusPill = document.getElementById('scan-status-pill');
-   const copyBtn = document.getElementById('btn-copy-decoded');
-   const regenBtn = document.getElementById('btn-regenerate-decoded');
-   const openUrlBtn = document.getElementById('btn-open-decoded-url');
-
-   if (outputEl) {
-     outputEl.textContent = decodedData;
-     outputEl.classList.remove('text-slate-400');
-     outputEl.classList.add('text-emerald-300');
-   }
-
-   if (statusPill) {
-     statusPill.textContent = 'QR Decoded!';
-     statusPill.className = 'text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-   }
-
-   if (copyBtn) copyBtn.disabled = false;
-   if (regenBtn) regenBtn.disabled = false;
-
-   addHistoryEntry('scanned', decodedData, sourceTag);
-
-   const urlMatch = extractValidUrl(decodedData);
-   if (urlMatch) {
-     if (openUrlBtn) {
-       openUrlBtn.href = urlMatch;
-       openUrlBtn.classList.remove('hidden');
-     }
-     if (isCameraRunning) stopCameraScanner();
-     showToast('QR scanned! Redirecting...', 'success');
-     setTimeout(() => {
-       window.location.href = urlMatch;
-     }, 400);
-     return;
-   }
-
-   const sharedFileId = extractSharedFileId(decodedData);
-   if (sharedFileId) {
-     if (openUrlBtn) openUrlBtn.classList.add('hidden');
-     loadInlineScannedSharedFile(sharedFileId);
-   } else {
-     const card = document.getElementById('scanned-shared-file-card');
-     if (card) card.classList.add('hidden');
-     if (openUrlBtn) openUrlBtn.classList.add('hidden');
-   }
-
-   showToast('QR code decoded successfully!', 'success');
- }
+      currentDecodedResult = decodedData;
+      addHistoryEntry('scanned', decodedData, sourceTag);
+      if (typeof isCameraRunning !== 'undefined' && isCameraRunning && typeof stopCameraScanner === 'function') {
+        stopCameraScanner();
+      }
+      showToast('QR Decoded! Opening result page...', 'success');
+      const targetUrl = `/scan-result?data=${encodeURIComponent(decodedData)}&source=${encodeURIComponent(sourceTag || 'Scanner')}`;
+      setTimeout(() => {
+        window.location.href = targetUrl;
+      }, 250);
+    }
 
     function extractSharedFileId(text) {
       const match = String(text).trim().match(/[#?&]file=([a-zA-Z0-9_-]+)/);

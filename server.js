@@ -145,6 +145,184 @@ app.get('/sitemap.xml', (req, res) => {
   </url>
 </urlset>`);
 });
+// Dedicated Scan Result Page for All QR Formats
+app.get('/scan-result', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  let adScripts = '';
+  try {
+    const indexHtml = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    adScripts = (indexHtml.match(/<script[\s\S]*?<\/script>/gi) || [])
+      .filter((s) => /atOptions|invoke\.js|profitable|effectivegate|adsterra|highperformance/i.test(s))
+      .join('\n');
+  } catch (e) {}
+
+  res.send(`<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Scan Result — QR Studio</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-20">
+    <div class="max-w-3xl mx-auto px-4 py-3.5 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5 font-bold text-white text-lg">
+        <span class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center text-sm font-extrabold">QR</span>
+        <span>QR Studio</span>
+      </a>
+      <a href="/" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition">
+        + Scan / Create QR
+      </a>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-2xl w-full mx-auto px-4 py-8">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-7 shadow-2xl">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <span id="qr-type-badge" class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+          QR Decoded
+        </span>
+        <span id="qr-source-tag" class="text-xs text-slate-400"></span>
+      </div>
+
+      <h1 id="qr-title" class="text-xl sm:text-2xl font-bold text-white mb-4">Scanned QR Content</h1>
+
+      <div id="parsed-details" class="hidden mb-4 p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2 text-sm"></div>
+
+      <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 mb-5">
+        <div class="text-[11px] uppercase tracking-wider text-slate-500 mb-1.5 font-semibold">Raw Decoded Data</div>
+        <pre id="raw-data-box" class="text-sm sm:text-base font-mono text-emerald-300 whitespace-pre-wrap break-all leading-relaxed"></pre>
+      </div>
+
+      <div class="flex flex-wrap gap-3">
+        <a id="primary-action-btn" href="#" target="_blank" rel="noopener noreferrer"
+          class="hidden flex-1 min-w-[160px] text-center px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-lg transition">
+          Open Link
+        </a>
+        <button id="copy-result-btn" type="button"
+          class="flex-1 min-w-[140px] px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition">
+          Copy Content
+        </button>
+        <a href="/"
+          class="w-full sm:w-auto text-center px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm transition">
+          Scan Another QR
+        </a>
+      </div>
+    </div>
+
+    <div class="mt-6 flex justify-center overflow-x-auto">
+      ${adScripts}
+    </div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const rawData = (params.get('data') || '').trim();
+    const source = params.get('source') || '';
+
+    const rawBox = document.getElementById('raw-data-box');
+    const badge = document.getElementById('qr-type-badge');
+    const title = document.getElementById('qr-title');
+    const sourceTag = document.getElementById('qr-source-tag');
+    const primaryBtn = document.getElementById('primary-action-btn');
+    const parsedBox = document.getElementById('parsed-details');
+    const copyBtn = document.getElementById('copy-result-btn');
+
+    if (source) sourceTag.textContent = 'Source: ' + source;
+    rawBox.textContent = rawData || 'No QR data found.';
+
+    function addDetailRow(label, value) {
+      if (!value) return;
+      parsedBox.classList.remove('hidden');
+      const row = document.createElement('div');
+      row.className = 'flex flex-wrap justify-between gap-2 border-b border-slate-800/80 pb-1.5 last:border-none last:pb-0';
+      const k = document.createElement('span');
+      k.className = 'text-slate-400 font-medium';
+      k.textContent = label;
+      const v = document.createElement('span');
+      v.className = 'text-white font-semibold break-all';
+      v.textContent = value;
+      row.appendChild(k);
+      row.appendChild(v);
+      parsedBox.appendChild(row);
+    }
+
+    if (/^https?:\\/\\/[^\\s]+$/i.test(rawData) || (/^[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)+(\\/[^\\s]*)?$/i.test(rawData) && !rawData.includes('@'))) {
+      const url = /^https?:\\/\\//i.test(rawData) ? rawData : 'https://' + rawData;
+      badge.textContent = 'Website / URL';
+      title.textContent = 'Website Link Detected';
+      primaryBtn.textContent = 'Open Website';
+      primaryBtn.href = url;
+      primaryBtn.classList.remove('hidden');
+    } else if (/^WIFI:/i.test(rawData)) {
+      badge.textContent = 'Wi-Fi Network';
+      title.textContent = 'Wi-Fi Credentials';
+      const ssid = (rawData.match(/S:([^;]*)/i) || [])[1] || '';
+      const pass = (rawData.match(/P:([^;]*)/i) || [])[1] || '';
+      const type = (rawData.match(/T:([^;]*)/i) || [])[1] || 'WPA';
+      addDetailRow('Network Name (SSID)', ssid);
+      addDetailRow('Password', pass || '(No Password)');
+      addDetailRow('Security', type);
+      if (pass) {
+        copyBtn.textContent = 'Copy Wi-Fi Password';
+        copyBtn.dataset.copyText = pass;
+      }
+    } else if (/^BEGIN:VCARD/i.test(rawData)) {
+      badge.textContent = 'Contact Card (vCard)';
+      title.textContent = 'Contact Details';
+      const fn = (rawData.match(/^FN:(.*)$/im) || [])[1] || '';
+      const tel = (rawData.match(/^TEL[^:]*:(.*)$/im) || [])[1] || '';
+      const email = (rawData.match(/^EMAIL[^:]*:(.*)$/im) || [])[1] || '';
+      addDetailRow('Name', fn);
+      addDetailRow('Phone', tel);
+      addDetailRow('Email', email);
+      const blob = new Blob([rawData], { type: 'text/vcard' });
+      primaryBtn.href = URL.createObjectURL(blob);
+      primaryBtn.download = (fn || 'contact') + '.vcf';
+      primaryBtn.removeAttribute('target');
+      primaryBtn.textContent = 'Save Contact (.vcf)';
+      primaryBtn.classList.remove('hidden');
+    } else if (/^upi:\\/\\//i.test(rawData)) {
+      badge.textContent = 'UPI Payment';
+      title.textContent = 'UPI Payment Link';
+      const uParams = new URLSearchParams(rawData.split('?')[1] || '');
+      addDetailRow('Payee Name', uParams.get('pn') || '');
+      addDetailRow('UPI ID', uParams.get('pa') || '');
+      addDetailRow('Amount', uParams.get('am') ? '₹' + uParams.get('am') : '');
+      primaryBtn.href = rawData;
+      primaryBtn.textContent = 'Open in UPI App';
+      primaryBtn.classList.remove('hidden');
+    } else if (/^mailto:/i.test(rawData)) {
+      badge.textContent = 'Email Address';
+      title.textContent = 'Email QR Code';
+      primaryBtn.href = rawData;
+      primaryBtn.textContent = 'Send Email';
+      primaryBtn.classList.remove('hidden');
+    } else if (/^tel:/i.test(rawData)) {
+      badge.textContent = 'Phone Number';
+      title.textContent = 'Phone Number QR';
+      primaryBtn.href = rawData;
+      primaryBtn.textContent = 'Call Number';
+      primaryBtn.classList.remove('hidden');
+    } else {
+      badge.textContent = 'Text / Data QR';
+      title.textContent = 'Decoded Text / Information';
+    }
+
+    copyBtn.addEventListener('click', () => {
+      const textToCopy = copyBtn.dataset.copyText || rawData;
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy Content'; }, 1800);
+      });
+    });
+  </script>
+</body>
+</html>`);
+});
 // 3. Self-Promoting & Monetized Shared File Viewer (/view)
 app.get('/view', (req, res) => {
   const { u, t, n } = req.query;

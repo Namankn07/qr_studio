@@ -694,6 +694,7 @@
            <span>Upload Photo / PDF</span>
          </button>
        </div>
+       </div>
 
         <!-- SUB-MODE 1: LIVE CAMERA SCANNER -->
         <div id="scanner-mode-camera" class="space-y-4">
@@ -2629,10 +2630,10 @@ function handleSuccessfulScan(decodedData, sourceTag) {
       updateHistoryBadgeCount(items.length);
     }
 
-    function updateHistoryBadgeCount(count) {
-      document.getElementById('history-count-badge').textContent = count;
-    }
-
+function updateHistoryBadgeCount(count) {
+   const badge = document.getElementById('history-count-badge');
+   if (badge) badge.textContent = count;
+ }
     function setHistoryFilter(filter) {
       historyFilter = filter;
       ['all', 'generated', 'scanned', 'files'].forEach((f) => {

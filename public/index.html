@@ -198,7 +198,14 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>Video Studio</span>
-          
+        </button>
+        <button
+          id="tab-btn-history"
+          onclick="switchMainTab('history')"
+          class="tab-btn flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition-colors"
+        >
+          <span>History</span>
+          <span id="history-count-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">0</span>
         </button>
       </nav>
     </div>
@@ -1021,7 +1028,7 @@
             <div id="studio-media-host" class="w-full h-full"></div>
 
             <!-- Shown ONLY when no video is currently loaded -->
-            <div id="studio-empty-state" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950">
+            <div id="studio-video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950">
               <div class="w-10 h-10 rounded-full bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-3">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -1117,22 +1124,6 @@
                 class="flex-1 rounded-xl bg-slate-950 border border-slate-800 focus:border-indigo-500 px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 outline-none transition"
               />
               <button type="button" onclick="playAndSaveExternalVideo()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shrink-0 transition">
-                Play
-              </button>
-            </div>
-          </div>
-<!-- Paste Video or YouTube Link (Single-step & fast) -->
-          <div class="space-y-2.5">
-            <h3 class="text-sm font-semibold text-white">Paste Video or YouTube Link</h3>
-            <div class="flex gap-2">
-              <input
-                type="url"
-                id="studio-video-url-input"
-                placeholder="https://youtube.com/... or .mp4 link"
-                class="flex-1 rounded-xl bg-slate-950 border border-slate-800 focus:border-indigo-500 px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 outline-none transition"
-              />
-              <input type="hidden" id="studio-yt-title-input" value="" />
-              <button type="button" onclick="playAndSaveExternalVideo()" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shrink-0 transition">
                 Play
               </button>
             </div>
@@ -1524,21 +1515,33 @@
     // NAVIGATION TABS
     // =========================================================================
 function switchMainTab(tabName) {
-      const tabs = ['generate', 'scanner', 'history', 'videos'];
+      const tabs = ['generate', 'scanner', 'history', 'videos', 'ufc'];
       tabs.forEach((t) => {
         const panel = document.getElementById(`panel-${t}`);
-        const btn = document.getElementById(`tab-btn-${t}`);
-        if (!panel || !btn) return;
+        const btn = document.getElementById(t === 'ufc' ? 'ufc-nav-btn' : `tab-btn-${t}`);
+        if (!panel) return;
         if (t === tabName) {
           panel.classList.remove('hidden');
-          if (t !== 'history' && t !== 'videos') panel.classList.add('grid');
-          btn.classList.remove('border-transparent', 'text-slate-400');
-          btn.classList.add('border-indigo-500', 'text-indigo-400');
+          if (t === 'generate' || t === 'scanner') panel.classList.add('grid');
+          if (btn) {
+            if (t === 'ufc') {
+              btn.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white shadow transition flex items-center gap-1.5 whitespace-nowrap';
+            } else {
+              btn.classList.remove('border-transparent', 'text-slate-400');
+              btn.classList.add('border-indigo-500', 'text-indigo-400');
+            }
+          }
         } else {
           panel.classList.add('hidden');
           panel.classList.remove('grid');
-          btn.classList.add('border-transparent', 'text-slate-400');
-          btn.classList.remove('border-indigo-500', 'text-indigo-400');
+          if (btn) {
+            if (t === 'ufc') {
+              btn.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800/80 border border-transparent transition flex items-center gap-1.5 whitespace-nowrap';
+            } else {
+              btn.classList.add('border-transparent', 'text-slate-400');
+              btn.classList.remove('border-indigo-500', 'text-indigo-400');
+            }
+          }
         }
       });
 
@@ -1552,6 +1555,15 @@ function switchMainTab(tabName) {
         renderStudioVideoLibrary();
         loadCloudPoolStatus();
       }
+    }
+
+    function extractValidUrl(text) {
+      const trimmed = String(text || '').trim();
+      if (/^https?:\/\/[^\s]+$/i.test(trimmed)) return trimmed;
+      if (/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(\/[^\s]*)?$/i.test(trimmed) && !trimmed.includes('@')) {
+        return `https://${trimmed}`;
+      }
+      return null;
     }
 
     // =========================================================================
@@ -3214,19 +3226,8 @@ function updateHistoryBadgeCount(count) {
           ufcOpenTab();
         }
       });
-      function ufcOpenTab() {
-        ['panel-generate', 'panel-scanner'].forEach((id) => {
-          const el = document.getElementById(id);
-          if (el) el.classList.add('hidden');
-        });
-        const ufcPanel = document.getElementById('panel-ufc');
-        if (ufcPanel) ufcPanel.classList.remove('hidden');
-
-        const navBtn = document.getElementById('ufc-nav-btn');
-        if (navBtn) {
-          navBtn.className =
-            'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white shadow transition flex items-center gap-1.5';
-        }
+function ufcOpenTab() {
+        switchMainTab('ufc');
       }
 
       // Auto-hide UFC panel whenever user switches back to Generate or Scanner tabs

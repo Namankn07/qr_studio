@@ -145,7 +145,7 @@ app.get('/sitemap.xml', (req, res) => {
   </url>
 </urlset>`);
 });
-// Dedicated Scan Result Page for All QR Formats
+// Dedicated Smart Scan Result Page (Renders Exact Content Format + Converter Suggestion)
 app.get('/scan-result', (req, res) => {
   const fs = require('fs');
   const path = require('path');
@@ -162,7 +162,7 @@ app.get('/scan-result', (req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QR Scan Result — QR Studio</title>
+  <title>QR Content Viewer — QR Studio</title>
   <meta name="robots" content="noindex, nofollow" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -179,36 +179,56 @@ app.get('/scan-result', (req, res) => {
     </div>
   </header>
 
-  <main class="flex-1 max-w-2xl w-full mx-auto px-4 py-8">
+  <main class="flex-1 max-w-2xl w-full mx-auto px-4 py-7">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-7 shadow-2xl">
-      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
         <span id="qr-type-badge" class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-          QR Decoded
+          QR Content
         </span>
         <span id="qr-source-tag" class="text-xs text-slate-400"></span>
       </div>
 
-      <h1 id="qr-title" class="text-xl sm:text-2xl font-bold text-white mb-4">Scanned QR Content</h1>
+      <h1 id="qr-title" class="text-xl sm:text-2xl font-bold text-white mb-4">Scanned Content</h1>
 
-      <div id="parsed-details" class="hidden mb-4 p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2 text-sm"></div>
+      <!-- Exact Visual Preview (Photo / PDF / Video / Website) -->
+      <div id="exact-media-stage" class="hidden mb-5 rounded-xl overflow-hidden bg-slate-950 border border-slate-800"></div>
 
-      <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 mb-5">
-        <div class="text-[11px] uppercase tracking-wider text-slate-500 mb-1.5 font-semibold">Raw Decoded Data</div>
+      <!-- Structured Details (Wi-Fi / Contact / UPI) -->
+      <div id="parsed-details" class="hidden mb-5 p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2.5 text-sm"></div>
+
+      <!-- Clean Text / Link Box (Hidden when Photo/PDF/Video is displayed) -->
+      <div id="raw-data-wrap" class="p-4 rounded-xl bg-slate-950 border border-slate-800 mb-5">
+        <div id="raw-data-label" class="text-[11px] uppercase tracking-wider text-slate-500 mb-1.5 font-semibold">Content</div>
         <pre id="raw-data-box" class="text-sm sm:text-base font-mono text-emerald-300 whitespace-pre-wrap break-all leading-relaxed"></pre>
       </div>
 
+      <!-- Primary Action Buttons -->
       <div class="flex flex-wrap gap-3">
         <a id="primary-action-btn" href="#" target="_blank" rel="noopener noreferrer"
           class="hidden flex-1 min-w-[160px] text-center px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-lg transition">
-          Open Link
+          Open
         </a>
         <button id="copy-result-btn" type="button"
           class="flex-1 min-w-[140px] px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition">
-          Copy Content
+          Copy
         </button>
         <a href="/"
           class="w-full sm:w-auto text-center px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm transition">
-          Scan Another QR
+          Scan Another
+        </a>
+      </div>
+
+      <!-- Smart Converter Suggestion Card -->
+      <div id="converter-suggestion-box" class="mt-6 pt-5 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <p class="text-xs font-bold text-indigo-300 uppercase tracking-wider">Need Another Format?</p>
+          <p id="converter-suggestion-text" class="text-xs text-slate-400 mt-0.5">
+            Convert PDF, JPG, PNG, WEBP, DOCX, Excel, Audio, or ZIP online for free.
+          </p>
+        </div>
+        <a id="converter-cta-btn" href="/?open=converter"
+          class="shrink-0 text-center px-4 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 text-xs font-semibold transition">
+          Open File Converter &rarr;
         </a>
       </div>
     </div>
@@ -223,22 +243,26 @@ app.get('/scan-result', (req, res) => {
     const rawData = (params.get('data') || '').trim();
     const source = params.get('source') || '';
 
+    const rawWrap = document.getElementById('raw-data-wrap');
     const rawBox = document.getElementById('raw-data-box');
+    const rawLabel = document.getElementById('raw-data-label');
     const badge = document.getElementById('qr-type-badge');
     const title = document.getElementById('qr-title');
     const sourceTag = document.getElementById('qr-source-tag');
     const primaryBtn = document.getElementById('primary-action-btn');
     const parsedBox = document.getElementById('parsed-details');
     const copyBtn = document.getElementById('copy-result-btn');
+    const mediaStage = document.getElementById('exact-media-stage');
+    const convText = document.getElementById('converter-suggestion-text');
 
-    if (source) sourceTag.textContent = 'Source: ' + source;
-    rawBox.textContent = rawData || 'No QR data found.';
+    if (source) sourceTag.textContent = 'Scanned via ' + source;
+    rawBox.textContent = rawData || 'No QR content found.';
 
     function addDetailRow(label, value) {
       if (!value) return;
       parsedBox.classList.remove('hidden');
       const row = document.createElement('div');
-      row.className = 'flex flex-wrap justify-between gap-2 border-b border-slate-800/80 pb-1.5 last:border-none last:pb-0';
+      row.className = 'flex flex-wrap justify-between gap-2 border-b border-slate-800/80 pb-2 last:border-none last:pb-0';
       const k = document.createElement('span');
       k.className = 'text-slate-400 font-medium';
       k.textContent = label;
@@ -250,35 +274,115 @@ app.get('/scan-result', (req, res) => {
       parsedBox.appendChild(row);
     }
 
-    if (/^https?:\\/\\/[^\\s]+$/i.test(rawData) || (/^[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)+(\\/[^\\s]*)?$/i.test(rawData) && !rawData.includes('@'))) {
-      const url = /^https?:\\/\\//i.test(rawData) ? rawData : 'https://' + rawData;
-      badge.textContent = 'Website / URL';
-      title.textContent = 'Website Link Detected';
-      primaryBtn.textContent = 'Open Website';
-      primaryBtn.href = url;
-      primaryBtn.classList.remove('hidden');
+    function decodeBase64Url(str) {
+      try {
+        const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+        return decodeURIComponent(escape(atob(b64)));
+      } catch (e) {
+        try { return atob(str); } catch (err) { return ''; }
+      }
+    }
+
+    const isUrl = /^https?:\\/\\/[^\\s]+$/i.test(rawData) || (/^[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)+(\\/[^\\s]*)?$/i.test(rawData) && !rawData.includes('@'));
+
+    if (isUrl) {
+      const fullUrl = /^https?:\\/\\//i.test(rawData) ? rawData : 'https://' + rawData;
+      let parsedUrl = null;
+      try { parsedUrl = new URL(fullUrl); } catch (e) {}
+
+      // Check if QR points to QR Studio /view?u=...&t=...&n=...
+      if (parsedUrl && parsedUrl.pathname === '/view' && parsedUrl.searchParams.get('u')) {
+        const cloudUrl = decodeBase64Url(parsedUrl.searchParams.get('u'));
+        const fType = (parsedUrl.searchParams.get('t') || '').toLowerCase();
+        const fName = parsedUrl.searchParams.get('n') || 'Shared File';
+
+        rawWrap.classList.add('hidden');
+        title.textContent = fName;
+        copyBtn.textContent = 'Copy Share Link';
+        copyBtn.dataset.copyText = fullUrl;
+
+        if (fType === 'img' || /\\.(jpg|jpeg|png|webp|gif)(\\?|$)/i.test(cloudUrl)) {
+          badge.textContent = 'PHOTO / IMAGE';
+          mediaStage.classList.remove('hidden');
+          mediaStage.innerHTML = '<img src="' + cloudUrl + '" alt="' + fName.replace(/"/g, '') + '" class="w-full max-h-[520px] object-contain mx-auto bg-black" />';
+          primaryBtn.href = cloudUrl;
+          primaryBtn.setAttribute('download', fName);
+          primaryBtn.textContent = 'Download Photo';
+          primaryBtn.classList.remove('hidden');
+          convText.textContent = 'Convert this Photo to PDF, JPG, PNG, WEBP, or ICO using QR Studio Converter.';
+        } else if (fType === 'pdf' || /\\.pdf(\\?|$)/i.test(cloudUrl)) {
+          badge.textContent = 'PDF DOCUMENT';
+          mediaStage.classList.remove('hidden');
+          mediaStage.innerHTML = '<iframe src="' + cloudUrl + '" class="w-full h-[520px] border-0 bg-white"></iframe>';
+          primaryBtn.href = cloudUrl;
+          primaryBtn.setAttribute('download', fName);
+          primaryBtn.textContent = 'Download PDF';
+          primaryBtn.classList.remove('hidden');
+          convText.textContent = 'Convert this PDF to JPG, PNG images, ZIP, or TXT using QR Studio Converter.';
+        } else {
+          badge.textContent = 'VIDEO';
+          mediaStage.classList.remove('hidden');
+          mediaStage.innerHTML = '<video src="' + cloudUrl + '" controls playsinline class="w-full max-h-[520px] bg-black"></video>';
+          primaryBtn.href = cloudUrl;
+          primaryBtn.setAttribute('download', fName);
+          primaryBtn.textContent = 'Download Video';
+          primaryBtn.classList.remove('hidden');
+          convText.textContent = 'Pack into ZIP or convert other media files in QR Studio Converter.';
+        }
+      } else if (/\\.(jpg|jpeg|png|webp|gif|svg)(\\?|$)/i.test(fullUrl)) {
+        badge.textContent = 'DIRECT IMAGE';
+        title.textContent = 'Image QR Content';
+        rawWrap.classList.add('hidden');
+        mediaStage.classList.remove('hidden');
+        mediaStage.innerHTML = '<img src="' + fullUrl + '" class="w-full max-h-[520px] object-contain mx-auto bg-black" />';
+        primaryBtn.href = fullUrl;
+        primaryBtn.textContent = 'Open Full Image';
+        primaryBtn.classList.remove('hidden');
+        convText.textContent = 'Convert images between JPG, PNG, WEBP, ICO, and PDF in QR Studio Converter.';
+      } else if (/\\.pdf(\\?|$)/i.test(fullUrl)) {
+        badge.textContent = 'DIRECT PDF';
+        title.textContent = 'PDF Document';
+        rawWrap.classList.add('hidden');
+        mediaStage.classList.remove('hidden');
+        mediaStage.innerHTML = '<iframe src="' + fullUrl + '" class="w-full h-[520px] border-0 bg-white"></iframe>';
+        primaryBtn.href = fullUrl;
+        primaryBtn.textContent = 'Open / Download PDF';
+        primaryBtn.classList.remove('hidden');
+        convText.textContent = 'Convert PDF pages to JPG, PNG, or TXT using QR Studio Converter.';
+      } else {
+        badge.textContent = 'WEBSITE / LINK';
+        title.textContent = 'Website Link';
+        rawLabel.textContent = 'Destination URL';
+        primaryBtn.href = fullUrl;
+        primaryBtn.textContent = 'Open Website';
+        primaryBtn.classList.remove('hidden');
+      }
     } else if (/^WIFI:/i.test(rawData)) {
-      badge.textContent = 'Wi-Fi Network';
-      title.textContent = 'Wi-Fi Credentials';
+      badge.textContent = 'WI-FI NETWORK';
+      title.textContent = 'Wi-Fi Login Details';
+      rawWrap.classList.add('hidden');
       const ssid = (rawData.match(/S:([^;]*)/i) || [])[1] || '';
       const pass = (rawData.match(/P:([^;]*)/i) || [])[1] || '';
       const type = (rawData.match(/T:([^;]*)/i) || [])[1] || 'WPA';
       addDetailRow('Network Name (SSID)', ssid);
-      addDetailRow('Password', pass || '(No Password)');
+      addDetailRow('Password', pass || '(Open Network)');
       addDetailRow('Security', type);
       if (pass) {
         copyBtn.textContent = 'Copy Wi-Fi Password';
         copyBtn.dataset.copyText = pass;
       }
     } else if (/^BEGIN:VCARD/i.test(rawData)) {
-      badge.textContent = 'Contact Card (vCard)';
-      title.textContent = 'Contact Details';
+      badge.textContent = 'CONTACT CARD (VCARD)';
+      title.textContent = 'Contact Information';
+      rawWrap.classList.add('hidden');
       const fn = (rawData.match(/^FN:(.*)$/im) || [])[1] || '';
       const tel = (rawData.match(/^TEL[^:]*:(.*)$/im) || [])[1] || '';
       const email = (rawData.match(/^EMAIL[^:]*:(.*)$/im) || [])[1] || '';
+      const org = (rawData.match(/^ORG:(.*)$/im) || [])[1] || '';
       addDetailRow('Name', fn);
       addDetailRow('Phone', tel);
       addDetailRow('Email', email);
+      addDetailRow('Organization', org);
       const blob = new Blob([rawData], { type: 'text/vcard' });
       primaryBtn.href = URL.createObjectURL(blob);
       primaryBtn.download = (fn || 'contact') + '.vcf';
@@ -286,37 +390,42 @@ app.get('/scan-result', (req, res) => {
       primaryBtn.textContent = 'Save Contact (.vcf)';
       primaryBtn.classList.remove('hidden');
     } else if (/^upi:\\/\\//i.test(rawData)) {
-      badge.textContent = 'UPI Payment';
-      title.textContent = 'UPI Payment Link';
+      badge.textContent = 'UPI PAYMENT';
+      title.textContent = 'UPI Payment Details';
+      rawWrap.classList.add('hidden');
       const uParams = new URLSearchParams(rawData.split('?')[1] || '');
       addDetailRow('Payee Name', uParams.get('pn') || '');
       addDetailRow('UPI ID', uParams.get('pa') || '');
       addDetailRow('Amount', uParams.get('am') ? '₹' + uParams.get('am') : '');
       primaryBtn.href = rawData;
-      primaryBtn.textContent = 'Open in UPI App';
+      primaryBtn.textContent = 'Pay via UPI App';
       primaryBtn.classList.remove('hidden');
     } else if (/^mailto:/i.test(rawData)) {
-      badge.textContent = 'Email Address';
-      title.textContent = 'Email QR Code';
+      badge.textContent = 'EMAIL';
+      title.textContent = 'Email Address';
+      rawBox.textContent = rawData.replace(/^mailto:/i, '');
       primaryBtn.href = rawData;
       primaryBtn.textContent = 'Send Email';
       primaryBtn.classList.remove('hidden');
     } else if (/^tel:/i.test(rawData)) {
-      badge.textContent = 'Phone Number';
-      title.textContent = 'Phone Number QR';
+      badge.textContent = 'PHONE NUMBER';
+      title.textContent = 'Phone Number';
+      rawBox.textContent = rawData.replace(/^tel:/i, '');
       primaryBtn.href = rawData;
       primaryBtn.textContent = 'Call Number';
       primaryBtn.classList.remove('hidden');
     } else {
-      badge.textContent = 'Text / Data QR';
-      title.textContent = 'Decoded Text / Information';
+      badge.textContent = 'PLAIN TEXT';
+      title.textContent = 'Decoded Text';
+      convText.textContent = 'Save or convert this text into PDF, HTML, or TXT in QR Studio Converter.';
     }
 
     copyBtn.addEventListener('click', () => {
       const textToCopy = copyBtn.dataset.copyText || rawData;
       navigator.clipboard.writeText(textToCopy).then(() => {
+        const old = copyBtn.textContent;
         copyBtn.textContent = 'Copied!';
-        setTimeout(() => { copyBtn.textContent = 'Copy Content'; }, 1800);
+        setTimeout(() => { copyBtn.textContent = old; }, 1800);
       });
     });
   </script>

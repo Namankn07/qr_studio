@@ -3209,7 +3209,11 @@ function updateHistoryBadgeCount(count) {
       let ufcExtractedText = '';
       let ufcParsedWorkbook = null;
       let ufcRenderedHtml = '';
-
+      window.addEventListener('DOMContentLoaded', () => {
+        if (new URLSearchParams(window.location.search).get('open') === 'converter') {
+          ufcOpenTab();
+        }
+      });
       function ufcOpenTab() {
         ['panel-generate', 'panel-scanner'].forEach((id) => {
           const el = document.getElementById(id);

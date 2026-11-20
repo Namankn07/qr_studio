@@ -67,31 +67,26 @@
     }
   </style>
   <style>
-  #panel-scanner > div {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) !important;
-    gap: 1.5rem !important;
-    align-items: start !important;
-  }
-
-  @media (max-width: 1023px) {
-    #panel-scanner > div {
-      grid-template-columns: minmax(0, 1fr) !important;
+    #panel-scanner:not(.hidden) {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) !important;
+      gap: 1.5rem !important;
+      align-items: start !important;
     }
-  }
 
-  #panel-scanner pre,
-  #panel-scanner button,
-  #panel-scanner span {
-    writing-mode: horizontal-tb !important;
-    word-break: normal !important;
-    overflow-wrap: anywhere !important;
-  }
+    @media (max-width: 1023px) {
+      #panel-scanner:not(.hidden) {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+    }
 
-  #panel-scanner button {
-    white-space: nowrap !important;
-  }
-</style>
+    #panel-scanner pre,
+    #panel-scanner button,
+    #panel-scanner span {
+      writing-mode: horizontal-tb !important;
+      word-break: normal !important;
+    }
+  </style>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
 
@@ -779,7 +774,12 @@
       </div>
 
  
-          
+          <!-- Right Column: Decoded Output Panel -->
+      <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <span class="text-sm font-bold text-white">Decoded QR Result</span>
+          <span id="scan-status-pill" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400">Waiting for QR...</span>
+        </div>
 
         <!-- Decoded Data Text Box -->
         <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 min-h-[140px] max-h-[220px] overflow-y-auto flex flex-col justify-between">
@@ -1851,24 +1851,24 @@ if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
     // TAB 2: UNLIMITED QR SCANNER (CAMERA + PHOTO/PDF UPLOAD)
     // =========================================================================
     function switchScannerSubMode(mode) {
-      const camBtn = document.getElementById('subtab-btn-camera');
-      const upBtn = document.getElementById('subtab-btn-upload');
-      const camDiv = document.getElementById('scanner-mode-camera');
-      const upDiv = document.getElementById('scanner-mode-upload');
+   const camBtn = document.getElementById('subtab-btn-camera');
+   const upBtn = document.getElementById('subtab-btn-upload');
+   const camDiv = document.getElementById('scanner-mode-camera');
+   const upDiv = document.getElementById('scanner-mode-upload');
 
-      if (mode === 'camera') {
-        camDiv.classList.remove('hidden');
-        upDiv.classList.add('hidden');
-        camBtn.className = 'p-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 bg-indigo-600 text-white shadow transition';
-        upBtn.className = 'p-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 text-slate-400 hover:text-slate-200 transition';
-      } else {
-        if (isCameraRunning) stopCameraScanner();
-        upDiv.classList.remove('hidden');
-        camDiv.classList.add('hidden');
-        upBtn.className = 'p-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 bg-indigo-600 text-white shadow transition';
-        camBtn.className = 'p-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 text-slate-400 hover:text-slate-200 transition';
-      }
-    }
+   if (mode === 'camera') {
+     camDiv.classList.remove('hidden');
+     upDiv.classList.add('hidden');
+     if (camBtn) camBtn.className = 'p-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 bg-indigo-600 text-white shadow transition';
+     if (upBtn) upBtn.className = 'p-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 text-slate-400 hover:text-slate-200 transition';
+   } else {
+     if (isCameraRunning) stopCameraScanner();
+     upDiv.classList.remove('hidden');
+     camDiv.classList.add('hidden');
+     if (upBtn) upBtn.className = 'p-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 bg-indigo-600 text-white shadow transition';
+     if (camBtn) camBtn.className = 'p-2.5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 text-slate-400 hover:text-slate-200 transition';
+   }
+ }
 
     // --- Sub-mode 2: Upload QR Photo or PDF File ---
     function setupDragAndDrop() {
@@ -2181,30 +2181,26 @@ if (viewerLinkEl) viewerLinkEl.href = linkData.shareUrl;
       ctx.fill();
       ctx.restore();
     }
+function handleSuccessfulScan(decodedData, sourceTag) {
+   currentDecodedResult = decodedData;
 
-    function handleSuccessfulScan(decodedData, sourceTag) {
-      currentDecodedResult = decodedData;
-      
+   const outputEl = document.getElementById('decoded-output-text');
+   const statusPill = document.getElementById('scan-status-pill');
+   const copyBtn = document.getElementById('btn-copy-decoded');
+   const regenBtn = document.getElementById('btn-regenerate-decoded');
+   const openUrlBtn = document.getElementById('btn-open-decoded-url');
 
-      playScanBeep();
+   outputEl.textContent = decodedData;
+   outputEl.classList.remove('text-slate-400');
+   outputEl.classList.add('text-emerald-300');
 
-      const outputEl = document.getElementById('decoded-output-text');
-      const statusPill = document.getElementById('scan-status-pill');
-      const copyBtn = document.getElementById('btn-copy-decoded');
-      const regenBtn = document.getElementById('btn-regenerate-decoded');
-      const openUrlBtn = document.getElementById('btn-open-decoded-url');
+   if (statusPill) {
+     statusPill.textContent = 'QR Decoded!';
+     statusPill.className = 'text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+   }
 
-      outputEl.textContent = decodedData;
-      updateScannerLinkAction(decodedData);
-      outputEl.classList.remove('text-slate-400');
-      outputEl.classList.add('text-emerald-300');
-
-      statusPill.textContent = 'QR Decoded!';
-      statusPill.className = 'text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-      counterEl.textContent = sessionScanCount;
-
-      copyBtn.disabled = false;
-      regenBtn.disabled = false;
+   copyBtn.disabled = false;
+   regenBtn.disabled = false;
 
       // Check if scanned QR points to a Shared Photo/PDF (#file=<fileId> or ?file=<fileId>)
       const sharedFileId = extractSharedFileId(decodedData);

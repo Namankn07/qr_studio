@@ -199,13 +199,15 @@
           </svg>
           <span>Video Studio</span>
         </button>
-        <button
-          id="tab-btn-history"
-          onclick="switchMainTab('history')"
+     <button
+          id="tab-btn-downloader"
+          onclick="switchMainTab('downloader')"
           class="tab-btn flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap transition-colors"
         >
-          <span>History</span>
-          <span id="history-count-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">0</span>
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span>Universal Downloader</span>
         </button>
       </nav>
     </div>
@@ -935,60 +937,103 @@
       </div>
     </section>
 
+ <!-- ========================================================= -->
+    <!-- TAB 3: UNIVERSAL VIDEO & MEDIA DOWNLOADER                 -->
     <!-- ========================================================= -->
-    <!-- TAB 3: UNLIMITED LOCAL HISTORY                            -->
-    <!-- ========================================================= -->
-    <section id="panel-history" class="hidden space-y-5">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800">
-          <div>
-            <h2 class="text-lg font-bold text-white">Unlimited Local History</h2>
-            <p class="text-xs sm:text-sm text-slate-400">All scanned and generated QR records, Photos, and PDFs stored in your browser.</p>
+    <section id="panel-downloader" class="hidden space-y-6">
+      <div class="max-w-3xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-7 shadow-2xl space-y-5">
+        <div>
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              100% Free &amp; Instant
+            </span>
+            <span class="text-xs text-slate-400">YouTube &bull; Instagram &bull; Facebook &bull; X &bull; Direct MP4/MP3/PDF</span>
           </div>
+          <h2 class="text-xl sm:text-2xl font-bold text-white">Universal Video, Reel &amp; File Downloader</h2>
+          <p class="text-xs sm:text-sm text-slate-400 mt-1">
+            Paste any link from YouTube, Facebook, Instagram, X (Twitter), Pinterest, or any direct video/audio/file URL to download directly to your device.
+          </p>
+        </div>
 
-          <div class="flex flex-wrap items-center gap-2">
-            <!-- History Search Input -->
-            <div class="relative">
+        <!-- Link Input Box -->
+        <div class="space-y-3">
+          <div class="flex flex-col sm:flex-row gap-2.5">
+            <div class="relative flex-1">
               <input
-                type="text"
-                id="history-search-input"
-                oninput="renderHistoryList()"
-                placeholder="Search history..."
-                class="bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 outline-none w-40 sm:w-48"
+                type="url"
+                id="dl-url-input"
+                placeholder="Paste YouTube, Instagram, Facebook, or direct link here..."
+                class="w-full rounded-xl bg-slate-950 border border-slate-800 focus:border-emerald-500 px-4 py-3.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition"
               />
             </div>
-
-            <!-- History Filter Buttons -->
-            <div class="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800">
-              <button type="button" onclick="setHistoryFilter('all')" id="hist-filter-all" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white">All</button>
-              <button type="button" onclick="setHistoryFilter('generated')" id="hist-filter-generated" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white">Generated</button>
-              <button type="button" onclick="setHistoryFilter('scanned')" id="hist-filter-scanned" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white">Scanned</button>
-              <button type="button" onclick="setHistoryFilter('files')" id="hist-filter-files" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white">Photo/PDF</button>
-            </div>
-
-            <!-- Clear History Trigger -->
             <button
               type="button"
-              id="btn-clear-history-prompt"
-              onclick="toggleClearHistoryConfirm(true)"
-              class="px-3.5 py-2 rounded-xl bg-rose-600/15 hover:bg-rose-600/25 border border-rose-500/30 text-rose-300 text-xs font-semibold transition"
+              onclick="pasteDownloaderUrl()"
+              class="px-4 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs sm:text-sm font-semibold text-slate-200 border border-slate-700 shrink-0 transition"
             >
-              Clear All History
+              Paste Link
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+              <button
+                type="button"
+                id="dl-mode-video"
+                onclick="setDownloaderMode('video')"
+                class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white transition"
+              >
+                Video / File (HD)
+              </button>
+              <button
+                type="button"
+                id="dl-mode-audio"
+                onclick="setDownloaderMode('audio')"
+                class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition"
+              >
+                Audio Only (MP3)
+              </button>
+            </div>
+
+            <button
+              type="button"
+              id="dl-fetch-btn"
+              onclick="startUniversalDownload()"
+              class="flex-1 sm:flex-initial px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-emerald-600/20 transition"
+            >
+              Get Download Link
             </button>
           </div>
         </div>
 
-        <!-- Inline Confirmation Bar (Replaces confirm() dialog) -->
-        <div id="clear-history-confirm-bar" class="hidden mt-4 p-4 rounded-xl bg-rose-950/50 border border-rose-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <span class="text-xs sm:text-sm text-rose-200 font-medium">Are you sure you want to permanently delete all QR history records?</span>
-          <div class="flex items-center gap-2">
-            <button type="button" onclick="confirmClearAllHistory()" class="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold">Yes, Delete All</button>
-            <button type="button" onclick="toggleClearHistoryConfirm(false)" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold">Cancel</button>
-          </div>
+        <!-- Loading / Error Status -->
+        <div id="dl-status-box" class="hidden p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-slate-300 flex items-center gap-3">
+          <span id="dl-spinner" class="w-4 h-4 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin shrink-0"></span>
+          <span id="dl-status-text">Fetching media download link...</span>
         </div>
 
-        <!-- History List Container -->
-        <div id="history-list-container" class="mt-5 space-y-3"></div>
+        <!-- Ready Download Result Card -->
+        <div id="dl-result-card" class="hidden p-4 sm:p-5 rounded-2xl bg-slate-950 border border-emerald-500/40 space-y-4">
+          <div class="flex flex-col sm:flex-row items-start gap-4">
+            <img id="dl-thumb-img" src="" alt="Preview" class="hidden w-full sm:w-36 h-24 object-cover rounded-xl border border-slate-800 bg-black shrink-0" />
+            <div class="min-w-0 flex-1 space-y-1">
+              <span id="dl-platform-badge" class="text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                MEDIA
+              </span>
+              <h3 id="dl-result-title" class="text-base font-bold text-white break-words">Ready to Download</h3>
+              <p class="text-xs text-slate-400">Click below to save directly to your device Downloads folder.</p>
+            </div>
+          </div>
+
+          <div id="dl-buttons-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+
+          <div class="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span class="text-slate-400">Want to convert this file to another format (MP3, JPG, PDF, ZIP)?</span>
+            <button type="button" onclick="ufcOpenTab()" class="text-indigo-400 hover:text-indigo-300 font-semibold">
+              Open File Converter &rarr;
+            </button>
+          </div>
+        </div>
       </div>
     </section>
 <!-- ========================================================= -->
@@ -1510,7 +1555,7 @@
     // NAVIGATION TABS
     // =========================================================================
 function switchMainTab(tabName) {
-      const tabs = ['generate', 'scanner', 'history', 'videos', 'ufc'];
+      const tabs = ['generate', 'scanner', 'downloader', 'videos', 'ufc'];
       tabs.forEach((t) => {
         const panel = document.getElementById(`panel-${t}`);
         const btn = document.getElementById(t === 'ufc' ? 'ufc-nav-btn' : `tab-btn-${t}`);
@@ -1542,9 +1587,6 @@ function switchMainTab(tabName) {
 
       if (tabName !== 'scanner' && isCameraRunning) {
         stopCameraScanner();
-      }
-      if (tabName === 'history') {
-        renderHistoryList();
       }
       if (tabName === 'videos') {
         renderStudioVideoLibrary();
@@ -2670,9 +2712,112 @@ function updateHistoryBadgeCount(count) {
       renderHistoryList();
       showToast('All QR history cleared.', 'info');
     }
+    let downloaderMode = 'video';
 
+function setDownloaderMode(mode) {
+  downloaderMode = mode;
+  const vBtn = document.getElementById('dl-mode-video');
+  const aBtn = document.getElementById('dl-mode-audio');
+  if (mode === 'video') {
+    vBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white transition';
+    aBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition';
+  } else {
+    aBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white transition';
+    vBtn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition';
+  }
+}
+
+async function pasteDownloaderUrl() {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text) {
+      document.getElementById('dl-url-input').value = text.trim();
+      showToast('Link pasted!', 'success');
+    }
+  } catch (e) {
+    showToast('Please paste the link manually inside the box.', 'info');
+  }
+}
+
+async function startUniversalDownload() {
+  const urlInput = document.getElementById('dl-url-input');
+  const url = (urlInput.value || '').trim();
+  if (!url) {
+    showToast('Please paste a YouTube, Instagram, Facebook, or file link first.', 'error');
+    return;
+  }
+
+  const fetchBtn = document.getElementById('dl-fetch-btn');
+  const statusBox = document.getElementById('dl-status-box');
+  const spinner = document.getElementById('dl-spinner');
+  const statusText = document.getElementById('dl-status-text');
+  const resultCard = document.getElementById('dl-result-card');
+
+  fetchBtn.disabled = true;
+  fetchBtn.classList.add('opacity-60');
+  resultCard.classList.add('hidden');
+  statusBox.classList.remove('hidden');
+  spinner.classList.remove('hidden');
+  statusText.className = 'text-slate-300';
+  statusText.textContent = 'Extracting downloadable media...';
+
+  try {
+    const res = await fetch('/api/universal-download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, mode: downloaderMode }),
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Could not extract downloadable file from this link.');
+    }
+
+    statusBox.classList.add('hidden');
+    resultCard.classList.remove('hidden');
+
+    document.getElementById('dl-platform-badge').textContent = data.platform || 'MEDIA';
+    document.getElementById('dl-result-title').textContent = data.title || 'Media Ready';
+
+    const thumbEl = document.getElementById('dl-thumb-img');
+    if (data.thumbnail) {
+      thumbEl.src = data.thumbnail;
+      thumbEl.classList.remove('hidden');
+    } else {
+      thumbEl.classList.add('hidden');
+    }
+
+    const btnList = document.getElementById('dl-buttons-list');
+    btnList.innerHTML = '';
+
+    data.items.forEach((item) => {
+      const a = document.createElement('a');
+      a.href = item.proxyUrl || item.directUrl;
+      if (item.external) {
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+      } else {
+        a.setAttribute('download', item.filename || 'download');
+      }
+      a.className =
+        'px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm text-center shadow-lg transition flex items-center justify-center gap-2';
+      a.textContent = item.label || 'Download Now';
+      btnList.appendChild(a);
+    });
+
+    showToast('Download ready! Click button to save.', 'success');
+  } catch (err) {
+    spinner.classList.add('hidden');
+    statusText.className = 'text-rose-400 font-medium';
+    statusText.textContent = err.message || 'Download failed.';
+  } finally {
+    fetchBtn.disabled = false;
+    fetchBtn.classList.remove('opacity-60');
+  }
+}
     function renderHistoryList() {
       const container = document.getElementById('history-list-container');
+      if (!container) return;
       const searchInput = document.getElementById('history-search-input');
       const queryText = searchInput ? searchInput.value.trim().toLowerCase() : '';
       const allItems = getHistoryItems();

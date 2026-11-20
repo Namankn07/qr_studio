@@ -145,6 +145,304 @@ app.get('/sitemap.xml', (req, res) => {
   </url>
 </urlset>`);
 });
+
+// =========================================================================
+// UNIVERSAL MEDIA DOWNLOADER API (ZERO SERVER STORAGE - DIRECT STREAM)
+// =========================================================================
+function isBlockedHost(hostname) {
+  const h = (hostname || '').toLowerCase();
+  return (
+    h === 'localhost' ||
+    h === '127.0.0.1' ||
+    h === '0.0.0.0' ||
+    h === '::1' ||
+    h.startsWith('10.') ||
+    h.startsWith('192.168.') ||
+    h.startsWith('169.254.') ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(h)
+  );
+}
+
+app.post('/api/universal-download', async (req, res) => {
+  try {
+    let rawUrl = String((req.body && req.body.url) || '').trim();
+    const mode = String((req.body && req.body.mode) || 'video').toLowerCase();
+
+    if (!rawUrl) {
+      return res.status(400).json({ error: 'Please paste a valid video, reel, audio, or file link.' });
+    }
+    if (!/^https?:\/\//i.test(rawUrl)) {
+      rawUrl = 'https://' + rawUrl;
+    }
+
+    let parsed;
+    try {
+      parsed = new URL(rawUrl);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid URL format. Please check the link.' });
+    }
+
+    if (isBlockedHost(parsed.hostname)) {
+      return res.status(403).json({ error: 'Restricted URL.' });
+    }
+
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+
+    // 1. Direct Media / Document File URLs (.mp4, .mp3, .jpg, .png, .pdf, .zip, etc.)
+    const directExtMatch = pathname.match(/\.(mp4|webm|mov|mkv|mp3|wav|m4a|ogg|jpg|jpeg|png|webp|gif|pdf|zip)$/i);
+    if (directExtMatch || (host.includes('cloudinary.com') && pathname.includes('/upload/'))) {
+      const ext = directExtMatch ? directExtMatch[1].toLowerCase() : 'mp4';
+      const rawName = decodeURIComponent(parsed.pathname.split('/').pop() || `download.${ext}`);
+      const safeName = rawName.includes('.') ? rawName : `${rawName}.${ext}`;
+      return res.json({
+        success: true,
+        platform: 'Direct File',
+        title: safeName,
+        thumbnail: /\.(jpg|jpeg|png|webp|gif)$/i.test(safeName) ? rawUrl : '',
+        items: [
+          {
+            label: `Download ${ext.toUpperCase()} File`,
+            filename: safeName,
+            proxyUrl: `/api/proxy-download?url=${encodeURIComponent(rawUrl)}&filename=${encodeURIComponent(safeName)}`,
+            directUrl: rawUrl,
+          },
+        ],
+      });
+    }
+
+    // 2. Social & Video Platforms (YouTube, Instagram, Facebook, X, TikTok, Vimeo, etc.)
+    let platform = 'Web Media';
+    if (host.includes('youtube.com') || host.includes('youtu.be')) platform = 'YouTube';
+    else if (host.includes('instagram.com')) platform = 'Instagram';
+    else if (host.includes('facebook.com') || host.includes('fb.watch')) platform = 'Facebook';
+    else if (host.includes('twitter.com') || host.includes('x.com')) platform = 'X (Twitter)';
+    else if (host.includes('tiktok.com')) platform = 'TikTok';
+    else if (host.includes('pinterest.')) platform = 'Pinterest';
+
+    // Try open Cobalt extraction nodes
+    const cobaltNodes = [
+      'https://api.cobalt.tools/',
+      'https://cobalt-api.kwiatekmiki.com/',
+      'https://cobalt-backend.canine.tools/',
+    ];
+
+    for (const apiEndpoint of cobaltNodes) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 7000);
+        const cRes = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: rawUrl,
+            downloadMode: mode === 'audio' ? 'audio' : 'auto',
+            videoQuality: '1080',
+            audioFormat: 'mp3',
+            filenameStyle: 'pretty',
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+
+        if (cRes.ok) {
+          const data = await cRes.json();
+          if ((data.status === 'tunnel' || data.status === 'redirect') && data.url) {
+            const ext = mode === 'audio' ? 'mp3' : 'mp4';
+            const fname = data.filename || `${platform.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}.${ext}`;
+            return res.json({
+              success: true,
+              platform,
+              title: data.filename || `${platform} Media Ready`,
+              thumbnail: '',
+              items: [
+                {
+                  label: mode === 'audio' ? 'Download Audio (MP3)' : 'Download Video (HD MP4)',
+                  filename: fname,
+                  proxyUrl: `/api/proxy-download?url=${encodeURIComponent(data.url)}&filename=${encodeURIComponent(fname)}`,
+                  directUrl: data.url,
+                },
+              ],
+            });
+          }
+
+          if (data.status === 'picker' && Array.isArray(data.picker) && data.picker.length > 0) {
+            const items = data.picker.map((item, idx) => {
+              const isPhoto = item.type === 'photo';
+              const ext = isPhoto ? 'jpg' : 'mp4';
+              const fname = `${platform.toLowerCase()}_${idx + 1}_${Date.now()}.${ext}`;
+              return {
+                label: isPhoto ? `Download Photo #${idx + 1}` : `Download Video #${idx + 1}`,
+                filename: fname,
+                proxyUrl: `/api/proxy-download?url=${encodeURIComponent(item.url)}&filename=${encodeURIComponent(fname)}`,
+                directUrl: item.url,
+              };
+            });
+            return res.json({
+              success: true,
+              platform,
+              title: `${platform} Carousel (${items.length} files)`,
+              thumbnail: data.picker[0].thumb || '',
+              items,
+            });
+          }
+        }
+      } catch (nodeErr) {
+        // Try next node
+      }
+    }
+
+    // 3. Built-in Meta / OpenGraph Media Extractor Fallback (Instagram, Facebook, X, Pinterest, Web)
+    try {
+      const pageRes = await fetch(rawUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          Accept: 'text/html,application/xhtml+xml',
+        },
+      });
+      const html = await pageRes.text();
+      const getMeta = (prop) => {
+        const m =
+          html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`, 'i')) ||
+          html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${prop}["']`, 'i'));
+        return m ? m[1].replace(/&amp;/g, '&') : '';
+      };
+
+      const ogTitle = getMeta('og:title') || getMeta('twitter:title') || `${platform} Media`;
+      const ogVideo = getMeta('og:video:secure_url') || getMeta('og:video') || getMeta('twitter:player:stream');
+      const ogImage = getMeta('og:image') || getMeta('twitter:image');
+
+      const items = [];
+      if (ogVideo && /^https?:\/\//i.test(ogVideo)) {
+        const vName = `${platform.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}.mp4`;
+        items.push({
+          label: 'Download Video (MP4)',
+          filename: vName,
+          proxyUrl: `/api/proxy-download?url=${encodeURIComponent(ogVideo)}&filename=${encodeURIComponent(vName)}`,
+          directUrl: ogVideo,
+        });
+      }
+      if (ogImage && /^https?:\/\//i.test(ogImage)) {
+        const iName = `${platform.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}.jpg`;
+        items.push({
+          label: ogVideo ? 'Download Cover / Thumbnail (JPG)' : 'Download Photo / Image (JPG)',
+          filename: iName,
+          proxyUrl: `/api/proxy-download?url=${encodeURIComponent(ogImage)}&filename=${encodeURIComponent(iName)}`,
+          directUrl: ogImage,
+        });
+      }
+
+      if (items.length > 0) {
+        return res.json({
+          success: true,
+          platform,
+          title: ogTitle,
+          thumbnail: ogImage,
+          items,
+        });
+      }
+    } catch (metaErr) {}
+
+    // 4. YouTube Thumbnail + Fast Mirror Fallback if Cloud IP is rate-limited
+    const ytMatch = rawUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+    if (ytMatch) {
+      const vidId = ytMatch[1];
+      const thumbUrl = `https://i.ytimg.com/vi/${vidId}/hqdefault.jpg`;
+      return res.json({
+        success: true,
+        platform: 'YouTube',
+        title: `YouTube Video (${vidId})`,
+        thumbnail: thumbUrl,
+        items: [
+          {
+            label: 'Fast MP4 / MP3 Download Mirror 1',
+            filename: `youtube_${vidId}.mp4`,
+            proxyUrl: `https://cobalt.tools/#${encodeURIComponent(rawUrl)}`,
+            directUrl: `https://cobalt.tools/#${encodeURIComponent(rawUrl)}`,
+            external: true,
+          },
+          {
+            label: 'Download HD Video Thumbnail (JPG)',
+            filename: `youtube_${vidId}_thumb.jpg`,
+            proxyUrl: `/api/proxy-download?url=${encodeURIComponent(thumbUrl)}&filename=youtube_${vidId}.jpg`,
+            directUrl: thumbUrl,
+          },
+        ],
+      });
+    }
+
+    return res.status(422).json({
+      error: 'This link may be private or login-protected. Make sure the post/video is Public and try again.',
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Could not process this link right now. Please try again.' });
+  }
+});
+
+// Zero-Storage Direct Stream Proxy (Forces browser download without saving on Render)
+app.get('/api/proxy-download', (req, res) => {
+  const targetUrl = String(req.query.url || '').trim();
+  const safeFilename = String(req.query.filename || 'qr_studio_download.mp4').replace(/[^a-zA-Z0-9._-]/g, '_');
+
+  if (!targetUrl || !/^https?:\/\//i.test(targetUrl)) {
+    return res.status(400).send('Invalid download URL');
+  }
+
+  const httpMod = require('http');
+  const httpsMod = require('https');
+
+  function streamWithRedirects(currentUrl, hops = 0) {
+    if (hops > 5) return res.status(502).send('Too many redirects');
+    let parsed;
+    try {
+      parsed = new URL(currentUrl);
+    } catch (e) {
+      return res.status(400).send('Invalid URL');
+    }
+    if (isBlockedHost(parsed.hostname)) return res.status(403).send('Blocked host');
+
+    const client = parsed.protocol === 'https:' ? httpsMod : httpMod;
+    client
+      .get(
+        currentUrl,
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            Referer: parsed.origin + '/',
+          },
+        },
+        (upstream) => {
+          if ([301, 302, 303, 307, 308].includes(upstream.statusCode) && upstream.headers.location) {
+            const nextUrl = new URL(upstream.headers.location, currentUrl).toString();
+            upstream.resume();
+            return streamWithRedirects(nextUrl, hops + 1);
+          }
+
+          if (upstream.statusCode && upstream.statusCode >= 400) {
+            upstream.resume();
+            return res.redirect(targetUrl);
+          }
+
+          res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+          if (upstream.headers['content-type']) {
+            res.setHeader('Content-Type', upstream.headers['content-type']);
+          }
+          if (upstream.headers['content-length']) {
+            res.setHeader('Content-Length', upstream.headers['content-length']);
+          }
+          upstream.pipe(res);
+        }
+      )
+      .on('error', () => {
+        if (!res.headersSent) res.redirect(targetUrl);
+      });
+  }
+
+  streamWithRedirects(targetUrl);
+});
 // Dedicated Smart Scan Result Page (Renders Exact Content Format + Converter Suggestion)
 app.get('/scan-result', (req, res) => {
   const fs = require('fs');

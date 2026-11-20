@@ -1006,8 +1006,8 @@
             </div>
           </div>
 
-          <!-- Video Viewport -->
-          <div class="relative w-full aspect-video bg-black rounded-xl border border-slate-800/80 overflow-hidden flex items-center justify-center">
+      <!-- Video Viewport -->
+          <div class="relative w-full aspect-video bg-black rounded-xl border border-slate-800/80 overflow-hidden">
             <video
               id="studio-video-player"
               controls
@@ -1023,10 +1023,6 @@
               allowfullscreen
             ></iframe>
 
-           <div id="studio-player-stage" class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center">
-            <!-- Active media (YouTube iframe or HTML5 <video>) fills 100% of this container -->
-            <div id="studio-media-host" class="w-full h-full"></div>
-
             <!-- Shown ONLY when no video is currently loaded -->
             <div id="studio-video-placeholder" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-950">
               <div class="w-10 h-10 rounded-full bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-3">
@@ -1038,7 +1034,6 @@
               <p class="text-sm font-semibold text-slate-200">Ready to Play</p>
               <p class="text-xs text-slate-400 mt-1">Paste a video link, open a file, or pick from Saved Videos</p>
             </div>
-          </div>
           </div>
 
           <!-- Clean Player Controls Bar -->

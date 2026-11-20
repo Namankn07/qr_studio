@@ -443,6 +443,156 @@ app.get('/api/proxy-download', (req, res) => {
 
   streamWithRedirects(targetUrl);
 });
+
+// =========================================================================
+// PROGRAMMATIC SEO LANDING PAGES & DYNAMIC SITEMAP (AUTO ORGANIC TRAFFIC)
+// =========================================================================
+const SEO_PAGES = {
+  '/pdf-to-qr-code': {
+    title: 'PDF to QR Code Generator Free — Convert Multi-Page PDF to QR Link',
+    desc: 'Upload any PDF document and convert it into a permanent scannable QR code link for free. Works on all mobile cameras without any app.',
+    h1: 'Free PDF to QR Code Generator',
+    sub: 'Upload any single or multi-page PDF and create an instant shareable QR code.',
+    tab: 'generate',
+    qrType: 'file',
+  },
+  '/photo-to-qr-code': {
+    title: 'Photo & Image to QR Code Maker Free — Instant Picture QR Link',
+    desc: 'Turn any JPG, PNG, or WEBP photo into a scannable QR code in seconds. Free online image to QR generator with high-resolution download.',
+    h1: 'Free Photo & Image to QR Code Maker',
+    sub: 'Upload any photo and generate a permanent scannable QR link immediately.',
+    tab: 'generate',
+    qrType: 'file',
+  },
+  '/wifi-qr-code-generator': {
+    title: 'Wi-Fi QR Code Generator Free — Share Wi-Fi Password via QR Scan',
+    desc: 'Create a free Wi-Fi QR code so guests can connect to your WPA/WPA2/WPA3 network instantly by scanning without typing passwords.',
+    h1: 'Free Wi-Fi QR Code Generator',
+    sub: 'Enter your Wi-Fi name and password to generate an instant scan-to-connect QR.',
+    tab: 'generate',
+    qrType: 'wifi',
+  },
+  '/vcard-qr-code-generator': {
+    title: 'Free vCard Contact QR Code Generator — Digital Business Card QR',
+    desc: 'Generate a free vCard QR code with your phone number, email, company, and address so anyone can save your contact in one scan.',
+    h1: 'Free Contact vCard QR Code Generator',
+    sub: 'Create a digital business card QR that saves directly to mobile contacts.',
+    tab: 'generate',
+    qrType: 'vcard',
+  },
+  '/qr-code-scanner-online': {
+    title: 'Free Online QR Code Scanner — Scan QR via Camera, Image or PDF',
+    desc: 'Scan any QR code online using your phone/laptop camera or by uploading a screenshot, photo, or multi-page PDF. No app required.',
+    h1: 'Free Online QR Code Scanner',
+    sub: 'Scan QR codes live via camera or upload any QR photo/PDF file.',
+    tab: 'scanner',
+  },
+  '/scan-qr-from-pdf': {
+    title: 'Scan QR Code from PDF Online Free — Multi-Page PDF QR Reader',
+    desc: 'Upload any PDF document to automatically detect and decode QR codes on any page instantly in your browser.',
+    h1: 'Scan QR Code from PDF Online',
+    sub: 'Upload multi-page PDFs or screenshots to extract QR links and text instantly.',
+    tab: 'scanner',
+  },
+  '/pdf-to-jpg-converter': {
+    title: 'Free PDF to JPG & PNG Converter Online — High Quality No Limit',
+    desc: 'Convert PDF pages into high-resolution JPG or PNG images online for free. Fast, private, and works directly in your browser.',
+    h1: 'Free PDF to JPG & PNG Converter',
+    sub: 'Upload any PDF and convert all pages into HD JPG or PNG images in seconds.',
+    tab: 'ufc',
+  },
+  '/jpg-to-pdf-converter': {
+    title: 'JPG to PDF Converter Free — Merge Multiple Images into 1 PDF',
+    desc: 'Convert and combine multiple JPG, PNG, or WEBP images into a single clean PDF document online for free with zero watermarks.',
+    h1: 'Free JPG & Image to PDF Converter',
+    sub: 'Select one or multiple photos to merge them into a single downloadable PDF.',
+    tab: 'ufc',
+  },
+  '/word-to-pdf-converter': {
+    title: 'Word (DOCX) Opener & Converter to PDF / HTML / TXT Free',
+    desc: 'Open DOCX Word documents online without MS Word and convert them to PDF, HTML, or plain text instantly for free.',
+    h1: 'Free Word (DOCX) Opener & PDF Converter',
+    sub: 'Read DOCX files in your browser and export them to PDF, HTML, or TXT.',
+    tab: 'ufc',
+  },
+  '/excel-to-csv-json-converter': {
+    title: 'Online Excel (XLSX) Viewer & Converter to CSV, JSON, HTML Free',
+    desc: 'Open XLSX, XLS, and CSV spreadsheets online and convert between Excel, CSV, JSON, and HTML tables instantly.',
+    h1: 'Free Excel (XLSX) & CSV Opener & Converter',
+    sub: 'View spreadsheets online and convert XLSX, CSV, JSON, and HTML formats.',
+    tab: 'ufc',
+  },
+  '/zip-file-opener-online': {
+    title: 'Free Online ZIP File Opener & Extractor — View & Pack ZIP Archives',
+    desc: 'Open ZIP archives directly in your browser, inspect files inside, or pack multiple files into a downloadable ZIP for free.',
+    h1: 'Free Online ZIP Archive Opener & Creator',
+    sub: 'Extract and view files inside any ZIP archive or compress files into ZIP.',
+    tab: 'ufc',
+  },
+  '/universal-file-opener': {
+    title: 'Universal File Opener & Format Converter — Open Any File Online',
+    desc: 'Open and convert PDF, JPG, PNG, WEBP, DOCX, XLSX, CSV, ZIP, MP4, MP3, JSON, and raw files online for free.',
+    h1: 'Universal File Opener & Format Converter',
+    sub: 'Open any file format in your browser and convert between popular formats.',
+    tab: 'ufc',
+  },
+  '/video-downloader-online': {
+    title: 'Free Online Video, Reel & Audio Downloader — Direct HD Save',
+    desc: 'Paste any public video, reel, audio, or direct media link to download MP4 or MP3 straight to your phone or PC for free.',
+    h1: 'Free Universal Video & Media Downloader',
+    sub: 'Paste any video, reel, or file URL to get an instant direct download link.',
+    tab: 'downloader',
+  },
+  '/mp4-to-mp3-audio-downloader': {
+    title: 'Online Audio & MP3 Extractor — Download Audio from Video Links',
+    desc: 'Extract and download MP3 audio from public video links or convert audio files to WAV online for free.',
+    h1: 'Free Online Audio & MP3 Downloader',
+    sub: 'Paste a video link and choose Audio Only (MP3) to download fast.',
+    tab: 'downloader',
+  },
+};
+
+app.get(Object.keys(SEO_PAGES), (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const meta = SEO_PAGES[req.path];
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const fullUrl = `${baseUrl}${req.path}`;
+
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    html = html
+      .replace(/<title>[\s\S]*?<\/title>/i, `<title>${meta.title}</title>`)
+      .replace(/<meta name="description" content="[^"]*"\s*\/?>/i, `<meta name="description" content="${meta.desc}" />`)
+      .replace('</head>', `<link rel="canonical" href="${fullUrl}" />\n<script>window.__INITIAL_SEO_STATE__ = ${JSON.stringify(meta)};</script>\n</head>`);
+    return res.send(html);
+  } catch (e) {
+    return res.redirect('/');
+  }
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const today = new Date().toISOString().split('T')[0];
+  const allPaths = ['/', ...Object.keys(SEO_PAGES)];
+
+  const urlsXml = allPaths
+    .map(
+      (p) => `  <url>
+    <loc>${baseUrl}${p}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>${p === '/' ? '1.0' : '0.85'}</priority>
+  </url>`
+    )
+    .join('\n');
+
+  res.setHeader('Content-Type', 'application/xml');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urlsXml}
+</urlset>`);
+});
 // Dedicated Smart Scan Result Page (Renders Exact Content Format + Converter Suggestion)
 app.get('/scan-result', (req, res) => {
   const fs = require('fs');

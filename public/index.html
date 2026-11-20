@@ -1541,7 +1541,11 @@
     window.addEventListener('hashchange', () => {
       checkUrlForSharedFile();
     });
-
+    if (window.__INITIAL_SEO_STATE__) {
+        const s = window.__INITIAL_SEO_STATE__;
+        if (s.tab && typeof switchMainTab === 'function') switchMainTab(s.tab);
+        if (s.qrType && typeof setGeneratorType === 'function') setGeneratorType(s.qrType);
+      }
     function checkUrlForSharedFile() {
       const hashFileId = extractSharedFileId(window.location.hash);
       const queryFileId = extractSharedFileId(window.location.search);

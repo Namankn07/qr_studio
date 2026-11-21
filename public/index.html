@@ -3837,7 +3837,7 @@ function ufcOpenTab() {
       return { blob: bestBlob, filename: `compressed_${base}.${ext}` };
     }
 
-    async function compressPdfToTarget(file, targetBytes, mode) {
+async function compressPdfToTarget(file, targetBytes, mode) {
       if (!window.pdfjsLib || !window.jspdf) {
         throw new Error('PDF engine still loading, please retry in 2 seconds.');
       }
@@ -3845,37 +3845,56 @@ function ufcOpenTab() {
       const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
       const { jsPDF } = window.jspdf;
 
-      let renderScale = mode === 'extreme' ? 0.9 : mode === 'balanced' ? 1.2 : 1.35;
-      let jpegQuality = mode === 'extreme' ? 0.38 : mode === 'balanced' ? 0.6 : 0.75;
+      // Start with crisp HD quality and step down only enough to fit targetBytes
+      const steps =
+        mode === 'extreme'
+          ? [{ scale: 1.15, q: 0.52 }]
+          : mode === 'balanced'
+          ? [{ scale: 1.75, q: 0.82 }]
+          : [
+              { scale: 2.0, q: 0.9 },
+              { scale: 1.8, q: 0.8 },
+              { scale: 1.6, q: 0.68 },
+              { scale: 1.4, q: 0.56 },
+              { scale: 1.2, q: 0.45 },
+              { scale: 1.0, q: 0.36 },
+              { scale: 0.82, q: 0.28 },
+            ];
+
       let bestBlob = null;
 
-      for (let attempt = 0; attempt < 5; attempt++) {
+      for (const step of steps) {
         let doc = null;
         for (let p = 1; p <= pdf.numPages; p++) {
           const page = await pdf.getPage(p);
-          const vp = page.getViewport({ scale: renderScale });
+          const vp = page.getViewport({ scale: step.scale });
+          const w = Math.round(vp.width);
+          const h = Math.round(vp.height);
+
           const canvas = document.createElement('canvas');
-          canvas.width = vp.width;
-          canvas.height = vp.height;
+          canvas.width = w;
+          canvas.height = h;
           const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
           ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillRect(0, 0, w, h);
           await page.render({ canvasContext: ctx, viewport: vp }).promise;
 
-          const imgData = canvas.toDataURL('image/jpeg', jpegQuality);
-          const orient = vp.width > vp.height ? 'l' : 'p';
+          const imgData = canvas.toDataURL('image/jpeg', step.q);
+          const orient = w > h ? 'l' : 'p';
+
+          // 'pt' keeps exact 1:1 PDF dimensions so zero white margin/gap appears
           if (!doc) {
-            doc = new jsPDF({ orientation: orient, unit: 'px', format: [vp.width, vp.height], compress: true });
+            doc = new jsPDF({ orientation: orient, unit: 'pt', format: [w, h], compress: true });
           } else {
-            doc.addPage([vp.width, vp.height], orient);
+            doc.addPage([w, h], orient);
           }
-          doc.addImage(imgData, 'JPEG', 0, 0, vp.width, vp.height, undefined, 'FAST');
+          doc.addImage(imgData, 'JPEG', 0, 0, w, h, undefined, 'FAST');
         }
 
         bestBlob = doc.output('blob');
         if (mode !== 'target' || bestBlob.size <= targetBytes) break;
-        jpegQuality = Math.max(0.18, jpegQuality * 0.65);
-        renderScale = Math.max(0.65, renderScale * 0.82);
       }
 
       return { blob: bestBlob, filename: `compressed_${file.name}` };

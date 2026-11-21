@@ -219,21 +219,21 @@ function runYtDlpExtract(binPath, targetUrl) {
       '--no-check-certificates',
       '--geo-bypass',
       '--extractor-args',
-      'youtube:player_client=ios,android,web',
+      'youtube:player_client=tv,mweb,web',
       '--user-agent',
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     ];
 
-    // Optional Cookies support via Render Env (YT_COOKIES)
     if (process.env.YT_COOKIES) {
       const cookiePath = path.join(os.tmpdir(), 'yt_cookies.txt');
-      fs.writeFileSync(cookiePath, process.env.YT_COOKIES);
+      const cookieContent = process.env.YT_COOKIES.replace(/\\n/g, '\n');
+      fs.writeFileSync(cookiePath, cookieContent);
       args.push('--cookies', cookiePath);
     }
 
     args.push(targetUrl);
 
-    execFile(binPath, args, { timeout: 25000, maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile(binPath, args, { timeout: 55000, maxBuffer: 20 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         return reject(new Error(stderr || err.message));
       }
@@ -250,7 +250,7 @@ app.post('/api/universal-download', async (req, res) => {
   try {
     let rawUrl = String((req.body && req.body.url) || '').trim();
     const mode = String((req.body && req.body.mode) || 'video').toLowerCase();
-
+       let ytDlpReason = '';
     if (!rawUrl) {
       return res.status(400).json({ error: 'Please paste a valid video, reel, audio, or file link.' });
     }
@@ -391,8 +391,9 @@ app.post('/api/universal-download', async (req, res) => {
             items,
           });
         }
-      } catch (ytErr) {
-        console.warn('yt-dlp fallback triggered:', ytErr.message.slice(0, 180));
+     } catch (ytErr) {
+        ytDlpReason = ytErr.message || '';
+        console.warn('yt-dlp fallback triggered:', ytDlpReason.slice(0, 200));
       }
     }
 
@@ -495,6 +496,12 @@ app.post('/api/universal-download', async (req, res) => {
         });
       }
     } catch (metaErr) {}
+
+   if (/sign in to confirm|not a bot|cookies/i.test(ytDlpReason)) {
+      return res.status(422).json({
+        error: 'YouTube blocked server IP. Add YT_COOKIES in Render Environment Variables to enable YouTube downloads.',
+      });
+    }
 
     return res.status(422).json({
       error: 'Could not extract video. Ensure the link is Public (not private/login-only) and try again.',

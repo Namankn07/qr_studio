@@ -2827,7 +2827,12 @@ async function startUniversalDownload() {
     resultCard.classList.remove('hidden');
 
     document.getElementById('dl-platform-badge').textContent = data.platform || 'MEDIA';
-    document.getElementById('dl-result-title').textContent = data.title || 'Media Ready';
+   const decoder = document.createElement('textarea');
+decoder.innerHTML = data.title || 'Media Ready';
+const cleanTitle = decoder.value.replace(/\s+/g, ' ').trim();
+const titleEl = document.getElementById('dl-result-title');
+titleEl.className = 'text-sm sm:text-base font-bold text-white line-clamp-2 break-words';
+titleEl.textContent = cleanTitle.length > 90 ? cleanTitle.slice(0, 90) + '...' : cleanTitle;
 
     const thumbEl = document.getElementById('dl-thumb-img');
     if (data.thumbnail) {

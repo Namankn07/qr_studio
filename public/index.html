@@ -1254,6 +1254,176 @@
               <p class="text-xs sm:text-sm text-slate-400 mt-1">
                 Open any format (PDF, JPG, PNG, WEBP, DOCX, XLSX, CSV, ZIP, MP4, MP3, JSON, Code, or any raw file) &amp; convert between formats instantly.
               </p>
+              <!-- Sub-Mode Switcher: Converter | Universal Compressor | Exam Image Cropper -->
+        <div id="ufc-subtabs" class="flex flex-wrap justify-center gap-2 mt-4 mb-5">
+          <button type="button" data-ufc-sub="convert" onclick="switchUfcSubTab('convert')"
+            class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white shadow transition">
+            🔄 Format Converter
+          </button>
+          <button type="button" data-ufc-sub="compress" onclick="switchUfcSubTab('compress')"
+            class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700 transition">
+            🗜️ Compress Any File (KB)
+          </button>
+          <button type="button" data-ufc-sub="crop" onclick="switchUfcSubTab('crop')"
+            class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700 transition">
+            ✂️ Exam Photo &amp; Sign Cropper
+          </button>
+        </div>
+
+        <!-- PANEL 2: UNIVERSAL FILE COMPRESSOR -->
+        <div id="ufc-panel-compress" class="hidden text-left space-y-4">
+          <div onclick="document.getElementById('comp-file-input').click()"
+            class="border-2 border-dashed border-emerald-500/40 hover:border-emerald-400 rounded-2xl p-6 text-center cursor-pointer bg-slate-900/60 transition">
+            <input id="comp-file-input" type="file" multiple class="hidden" onchange="handleCompressFileSelect(this.files)" />
+            <div class="text-2xl mb-1">🗜️</div>
+            <p class="text-sm sm:text-base font-semibold text-white">Select ANY File to Compress (PDF, JPG, PNG, DOCX, XLSX, Video, ZIP, etc.)</p>
+            <p class="text-xs text-slate-400 mt-1">Shrinks images &amp; multi-page PDFs to your exact KB limit, and packs other files with max ZIP compression</p>
+          </div>
+
+          <div id="comp-file-info" class="hidden px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-700 text-xs sm:text-sm text-slate-200 flex flex-wrap items-center justify-between gap-2"></div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-900/70 p-4 rounded-2xl border border-slate-800">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Target Max Size (KB) — For Images &amp; PDFs</label>
+              <div class="flex gap-2">
+                <input id="comp-target-kb" type="number" min="5" max="50000" value="50"
+                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-emerald-500 outline-none" />
+                <span class="px-3 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold flex items-center">KB</span>
+              </div>
+              <div class="flex flex-wrap gap-1.5 mt-2">
+                <button type="button" onclick="document.getElementById('comp-target-kb').value=20" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">20 KB</button>
+                <button type="button" onclick="document.getElementById('comp-target-kb').value=50" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">50 KB</button>
+                <button type="button" onclick="document.getElementById('comp-target-kb').value=100" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">100 KB</button>
+                <button type="button" onclick="document.getElementById('comp-target-kb').value=200" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">200 KB</button>
+                <button type="button" onclick="document.getElementById('comp-target-kb').value=500" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">500 KB</button>
+                <button type="button" onclick="document.getElementById('comp-target-kb').value=1024" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">1 MB</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Compression Mode</label>
+              <select id="comp-mode" class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm outline-none">
+                <option value="target">Strict Target KB (Auto-fit under KB limit)</option>
+                <option value="balanced">Balanced Quality (65% — Sharp &amp; Small)</option>
+                <option value="extreme">Extreme Shrink (35% — Maximum Reduction)</option>
+              </select>
+              <p class="text-[11px] text-slate-400 mt-2">DOCX, XLSX, MP4, or multiple files automatically compress into a high-density ZIP archive.</p>
+            </div>
+          </div>
+
+          <button id="comp-run-btn" type="button" onclick="runUniversalCompress()"
+            class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg transition">
+            Compress &amp; Download File
+          </button>
+
+          <div id="comp-result-box" class="hidden p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-3">
+            <div id="comp-result-stats" class="text-xs sm:text-sm text-emerald-200"></div>
+            <a id="comp-download-btn" href="#" download="compressed_file"
+              class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow">
+              Download Again
+            </a>
+          </div>
+        </div>
+
+        <!-- PANEL 3: EXAM PHOTO & SIGNATURE CROPPER -->
+        <div id="ufc-panel-crop" class="hidden text-left space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-900/70 p-4 rounded-2xl border border-slate-800">
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Select Exam Preset (Auto Size + KB)</label>
+              <select id="exam-preset-select" onchange="applyExamPreset(this.value)"
+                class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs sm:text-sm outline-none">
+                <option value="ssc_photo">SSC (CGL / CHSL / MTS / GD) Photo — 413×531 px (20–50 KB)</option>
+                <option value="ssc_sign">SSC Signature — 472×236 px (10–20 KB)</option>
+                <option value="upsc_photo">UPSC / State PSC Photo — 500×500 px (20–300 KB)</option>
+                <option value="upsc_sign">UPSC / State PSC Signature — 500×200 px (20–300 KB)</option>
+                <option value="ibps_photo">IBPS / SBI Bank Photo — 200×230 px (20–50 KB)</option>
+                <option value="ibps_sign">IBPS / SBI Signature — 140×60 px (10–20 KB)</option>
+                <option value="ibps_thumb">IBPS Thumb / Declaration — 800×400 px (50–100 KB)</option>
+                <option value="nta_photo">NTA (JEE / NEET / CUET) Passport Photo — 413×531 px (10–200 KB)</option>
+                <option value="nta_postcard">NTA Postcard Photo (4×6 in) — 600×900 px (10–200 KB)</option>
+                <option value="gate_photo">GATE / RRB Railway Photo — 480×640 px (20–50 KB)</option>
+                <option value="gate_sign">GATE / RRB Railway Signature — 560×160 px (10–40 KB)</option>
+                <option value="custom">Custom Dimensions &amp; KB (Free Ratio)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Width × Height (px)</label>
+              <div class="flex items-center gap-1.5">
+                <input id="exam-width" type="number" value="413" min="40" max="3000" oninput="onExamDimChange()"
+                  class="w-full px-2.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs sm:text-sm" />
+                <span class="text-slate-400 text-xs">×</span>
+                <input id="exam-height" type="number" value="531" min="40" max="3000" oninput="onExamDimChange()"
+                  class="w-full px-2.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs sm:text-sm" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Max File Size (KB)</label>
+              <input id="exam-target-kb" type="number" value="42" min="5" max="2000" oninput="renderExamOutput()"
+                class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs sm:text-sm" />
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <button type="button" onclick="document.getElementById('exam-crop-input').click()"
+              class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs sm:text-sm shadow">
+              📤 Upload Photo / Signature
+            </button>
+            <input id="exam-crop-input" type="file" accept="image/*" class="hidden" onchange="loadExamImage(this.files[0])" />
+
+            <label class="inline-flex items-center gap-2 text-xs text-slate-300 bg-slate-900 px-3 py-2 rounded-xl border border-slate-800 cursor-pointer">
+              <input id="exam-clean-sign" type="checkbox" onchange="renderExamOutput()" class="accent-emerald-500" />
+              <span>Clean White Background (Best for Signature)</span>
+            </label>
+          </div>
+
+          <div id="exam-workspace" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+            <div class="lg:col-span-2 bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-2.5">
+              <div class="flex flex-wrap gap-1.5">
+                <button type="button" onclick="rotateExamImage(-90)" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-white">↺ Rotate Left</button>
+                <button type="button" onclick="rotateExamImage(90)" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-white">↻ Rotate Right</button>
+                <button type="button" onclick="flipExamImage()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-white">⇄ Flip</button>
+                <button type="button" onclick="resetExamCropBox()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-white">⛶ Reset Box</button>
+              </div>
+
+              <div class="flex justify-center overflow-hidden rounded-xl bg-slate-900/90 p-2">
+                <div id="exam-crop-stage" class="relative inline-block select-none" style="touch-action:none;">
+                  <canvas id="exam-stage-canvas" class="block max-w-full rounded-lg"></canvas>
+                  <div id="exam-crop-box"
+                    class="absolute border-2 border-emerald-400 shadow-[0_0_0_9999px_rgba(2,6,23,0.62)] cursor-move">
+                    <div class="w-full h-full grid grid-cols-3 grid-rows-3 pointer-events-none">
+                      <div class="border-r border-b border-white/25"></div>
+                      <div class="border-r border-b border-white/25"></div>
+                      <div class="border-b border-white/25"></div>
+                      <div class="border-r border-b border-white/25"></div>
+                      <div class="border-r border-b border-white/25"></div>
+                      <div class="border-b border-white/25"></div>
+                      <div class="border-r border-white/25"></div>
+                      <div class="border-r border-white/25"></div>
+                      <div></div>
+                    </div>
+                    <div id="exam-crop-handle"
+                      class="absolute -right-2.5 -bottom-2.5 w-6 h-6 rounded-full bg-emerald-400 border-2 border-slate-950 shadow cursor-nwse-resize"></div>
+                  </div>
+                </div>
+              </div>
+              <p class="text-[11px] text-slate-400 text-center">Drag box to frame face/signature • Drag green corner dot to resize</p>
+            </div>
+
+            <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 space-y-3 text-center">
+              <p class="text-xs font-bold uppercase tracking-wider text-emerald-400">Exam-Ready Output Preview</p>
+              <div class="bg-white/5 p-2 rounded-xl flex justify-center items-center min-h-[140px]">
+                <img id="exam-output-preview" alt="Cropped Exam Preview" class="max-h-48 max-w-full rounded border border-slate-700 object-contain bg-white" />
+              </div>
+              <div id="exam-output-meta" class="text-xs text-slate-300 space-y-1"></div>
+              <a id="exam-download-btn" href="#" download="exam_photo.jpg"
+                class="block w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-lg transition">
+                Download Exam-Ready JPG
+              </a>
+            </div>
+          </div>
+        </div>
             </div>
           </div>
 
@@ -3449,7 +3619,460 @@ titleEl.textContent = cleanTitle.length > 90 ? cleanTitle.slice(0, 90) + '...' :
 function ufcOpenTab() {
         switchMainTab('ufc');
       }
+      // =========================================================================
+    // SUB-TAB SWITCHER + UNIVERSAL FILE COMPRESSOR + EXAM IMAGE CROPPER
+    // =========================================================================
+    function switchUfcSubTab(sub) {
+      document.querySelectorAll('#ufc-subtabs button').forEach((btn) => {
+        const active = btn.getAttribute('data-ufc-sub') === sub;
+        btn.className = active
+          ? 'px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white shadow transition'
+          : 'px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700 transition';
+      });
 
+      const compPanel = document.getElementById('ufc-panel-compress');
+      const cropPanel = document.getElementById('ufc-panel-crop');
+      compPanel.classList.toggle('hidden', sub !== 'compress');
+      cropPanel.classList.toggle('hidden', sub !== 'crop');
+
+      let sibling = cropPanel.nextElementSibling;
+      while (sibling) {
+        sibling.classList.toggle('hidden', sub !== 'convert');
+        sibling = sibling.nextElementSibling;
+      }
+    }
+
+    // --- 1. UNIVERSAL FILE COMPRESSOR ---
+    let compSelectedFiles = [];
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function handleCompressFileSelect(fileList) {
+      compSelectedFiles = Array.from(fileList || []);
+      const infoEl = document.getElementById('comp-file-info');
+      if (!compSelectedFiles.length) {
+        infoEl.classList.add('hidden');
+        return;
+      }
+      const totalBytes = compSelectedFiles.reduce((s, f) => s + f.size, 0);
+      const label = compSelectedFiles.length === 1
+        ? `${compSelectedFiles[0].name} (${formatBytes(totalBytes)})`
+        : `${compSelectedFiles.length} files selected (Total: ${formatBytes(totalBytes)})`;
+      infoEl.innerHTML = `<span class="font-semibold text-white">📄 ${label}</span><span class="text-emerald-400">Ready to compress</span>`;
+      infoEl.classList.remove('hidden');
+    }
+
+    async function compressImageToTarget(file, targetBytes, mode) {
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = URL.createObjectURL(file);
+      });
+
+      const outType = file.type === 'image/webp' ? 'image/webp' : 'image/jpeg';
+      let scale = mode === 'extreme' ? 0.7 : 1.0;
+      let quality = mode === 'extreme' ? 0.4 : mode === 'balanced' ? 0.65 : 0.88;
+      let bestBlob = null;
+
+      for (let step = 0; step < 8; step++) {
+        const w = Math.max(80, Math.round(img.width * scale));
+        const h = Math.max(80, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+
+        if (mode !== 'target') {
+          bestBlob = await new Promise((r) => canvas.toBlob(r, outType, quality));
+          break;
+        }
+
+        let lo = 0.08, hi = 0.94;
+        for (let b = 0; b < 6; b++) {
+          const mid = (lo + hi) / 2;
+          const blob = await new Promise((r) => canvas.toBlob(r, outType, mid));
+          if (!bestBlob || blob.size <= targetBytes || blob.size < bestBlob.size) {
+            bestBlob = blob;
+          }
+          if (blob.size > targetBytes) hi = mid;
+          else lo = mid;
+        }
+
+        if (bestBlob && bestBlob.size <= targetBytes) break;
+        scale *= 0.78;
+      }
+
+      const base = file.name.replace(/\.[^.]+$/, '');
+      const ext = outType === 'image/webp' ? 'webp' : 'jpg';
+      return { blob: bestBlob, filename: `compressed_${base}.${ext}` };
+    }
+
+    async function compressPdfToTarget(file, targetBytes, mode) {
+      if (!window.pdfjsLib || !window.jspdf) {
+        throw new Error('PDF engine still loading, please retry in 2 seconds.');
+      }
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const { jsPDF } = window.jspdf;
+
+      let renderScale = mode === 'extreme' ? 0.9 : mode === 'balanced' ? 1.2 : 1.35;
+      let jpegQuality = mode === 'extreme' ? 0.38 : mode === 'balanced' ? 0.6 : 0.75;
+      let bestBlob = null;
+
+      for (let attempt = 0; attempt < 5; attempt++) {
+        let doc = null;
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const page = await pdf.getPage(p);
+          const vp = page.getViewport({ scale: renderScale });
+          const canvas = document.createElement('canvas');
+          canvas.width = vp.width;
+          canvas.height = vp.height;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+          const imgData = canvas.toDataURL('image/jpeg', jpegQuality);
+          const orient = vp.width > vp.height ? 'l' : 'p';
+          if (!doc) {
+            doc = new jsPDF({ orientation: orient, unit: 'px', format: [vp.width, vp.height], compress: true });
+          } else {
+            doc.addPage([vp.width, vp.height], orient);
+          }
+          doc.addImage(imgData, 'JPEG', 0, 0, vp.width, vp.height, undefined, 'FAST');
+        }
+
+        bestBlob = doc.output('blob');
+        if (mode !== 'target' || bestBlob.size <= targetBytes) break;
+        jpegQuality = Math.max(0.18, jpegQuality * 0.65);
+        renderScale = Math.max(0.65, renderScale * 0.82);
+      }
+
+      return { blob: bestBlob, filename: `compressed_${file.name}` };
+    }
+
+    async function runUniversalCompress() {
+      if (!compSelectedFiles.length) {
+        showToast('Please select at least one file to compress first.', 'error');
+        return;
+      }
+      const btn = document.getElementById('comp-run-btn');
+      const targetKb = Math.max(5, parseFloat(document.getElementById('comp-target-kb').value || '50'));
+      const targetBytes = targetKb * 1024;
+      const mode = document.getElementById('comp-mode').value;
+      const originalTotal = compSelectedFiles.reduce((s, f) => s + f.size, 0);
+
+      btn.disabled = true;
+      btn.textContent = 'Compressing... Please wait';
+
+      try {
+        let result;
+        if (compSelectedFiles.length === 1 && compSelectedFiles[0].type.startsWith('image/')) {
+          result = await compressImageToTarget(compSelectedFiles[0], targetBytes, mode);
+        } else if (compSelectedFiles.length === 1 && compSelectedFiles[0].type === 'application/pdf') {
+          result = await compressPdfToTarget(compSelectedFiles[0], targetBytes, mode);
+        } else {
+          const zip = new JSZip();
+          for (const f of compSelectedFiles) {
+            zip.file(f.name, await f.arrayBuffer());
+          }
+          const zipBlob = await zip.generateAsync({
+            type: 'blob',
+            compression: 'DEFLATE',
+            compressionOptions: { level: 9 },
+          });
+          const base = compSelectedFiles.length === 1
+            ? compSelectedFiles[0].name.replace(/\.[^.]+$/, '')
+            : 'compressed_files';
+          result = { blob: zipBlob, filename: `${base}_compressed.zip` };
+        }
+
+        const url = URL.createObjectURL(result.blob);
+        const dlBtn = document.getElementById('comp-download-btn');
+        dlBtn.href = url;
+        dlBtn.download = result.filename;
+
+        const savedPct = Math.max(0, Math.round((1 - result.blob.size / originalTotal) * 100));
+        document.getElementById('comp-result-stats').innerHTML =
+          `✅ <b>${result.filename}</b> • Original: <b>${formatBytes(originalTotal)}</b> → Compressed: <b class="text-white">${formatBytes(result.blob.size)}</b> (${savedPct}% smaller)`;
+        document.getElementById('comp-result-box').classList.remove('hidden');
+
+        dlBtn.click();
+        showToast('File compressed & downloaded!', 'success');
+      } catch (err) {
+        showToast(err.message || 'Compression failed.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Compress & Download File';
+      }
+    }
+
+    // --- 2. EXAM PHOTO & SIGNATURE CROPPER ---
+    const EXAM_PRESETS = {
+      ssc_photo:    { w: 413, h: 531, kb: 42,  sign: false, lock: true,  name: 'ssc_photo.jpg' },
+      ssc_sign:     { w: 472, h: 236, kb: 17,  sign: true,  lock: true,  name: 'ssc_signature.jpg' },
+      upsc_photo:   { w: 500, h: 500, kb: 120, sign: false, lock: true,  name: 'upsc_photo.jpg' },
+      upsc_sign:    { w: 500, h: 200, kb: 80,  sign: true,  lock: true,  name: 'upsc_signature.jpg' },
+      ibps_photo:   { w: 200, h: 230, kb: 40,  sign: false, lock: true,  name: 'ibps_photo.jpg' },
+      ibps_sign:    { w: 140, h: 60,  kb: 17,  sign: true,  lock: true,  name: 'ibps_signature.jpg' },
+      ibps_thumb:   { w: 800, h: 400, kb: 80,  sign: true,  lock: true,  name: 'ibps_declaration_thumb.jpg' },
+      nta_photo:    { w: 413, h: 531, kb: 85,  sign: false, lock: true,  name: 'nta_passport_photo.jpg' },
+      nta_postcard: { w: 600, h: 900, kb: 120, sign: false, lock: true,  name: 'nta_postcard_photo.jpg' },
+      gate_photo:   { w: 480, h: 640, kb: 42,  sign: false, lock: true,  name: 'gate_rrb_photo.jpg' },
+      gate_sign:    { w: 560, h: 160, kb: 30,  sign: true,  lock: true,  name: 'gate_rrb_signature.jpg' },
+      custom:       { w: 400, h: 400, kb: 50,  sign: false, lock: false, name: 'exam_cropped.jpg' },
+    };
+
+    const examState = {
+      img: null,
+      rot: 0,
+      flip: false,
+      box: { x: 20, y: 20, w: 160, h: 200 },
+      lockRatio: true,
+      filename: 'ssc_photo.jpg',
+    };
+
+    function applyExamPreset(key) {
+      const p = EXAM_PRESETS[key] || EXAM_PRESETS.ssc_photo;
+      document.getElementById('exam-width').value = p.w;
+      document.getElementById('exam-height').value = p.h;
+      document.getElementById('exam-target-kb').value = p.kb;
+      document.getElementById('exam-clean-sign').checked = p.sign;
+      examState.lockRatio = p.lock;
+      examState.filename = p.name;
+      if (examState.img) {
+        resetExamCropBox();
+        renderExamOutput();
+      }
+    }
+
+    function onExamDimChange() {
+      if (examState.img) {
+        resetExamCropBox();
+        renderExamOutput();
+      }
+    }
+
+    function loadExamImage(file) {
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => {
+        examState.img = img;
+        examState.rot = 0;
+        examState.flip = false;
+        document.getElementById('exam-workspace').classList.remove('hidden');
+        drawExamStage();
+        resetExamCropBox();
+        renderExamOutput();
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    function rotateExamImage(deg) {
+      if (!examState.img) return;
+      examState.rot = (examState.rot + deg + 360) % 360;
+      drawExamStage();
+      resetExamCropBox();
+      renderExamOutput();
+    }
+
+    function flipExamImage() {
+      if (!examState.img) return;
+      examState.flip = !examState.flip;
+      drawExamStage();
+      renderExamOutput();
+    }
+
+    function drawExamStage() {
+      const img = examState.img;
+      const canvas = document.getElementById('exam-stage-canvas');
+      const sideways = examState.rot === 90 || examState.rot === 270;
+      const srcW = sideways ? img.height : img.width;
+      const srcH = sideways ? img.width : img.height;
+
+      const maxStageW = Math.min(520, window.innerWidth - 72);
+      const scale = Math.min(1, maxStageW / srcW, 380 / srcH);
+      canvas.width = Math.max(120, Math.round(srcW * scale));
+      canvas.height = Math.max(120, Math.round(srcH * scale));
+
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((examState.rot * Math.PI) / 180);
+      if (examState.flip) ctx.scale(-1, 1);
+      const drawW = sideways ? canvas.height : canvas.width;
+      const drawH = sideways ? canvas.width : canvas.height;
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+    }
+
+    function resetExamCropBox() {
+      const canvas = document.getElementById('exam-stage-canvas');
+      const targetW = Math.max(40, parseInt(document.getElementById('exam-width').value || '413', 10));
+      const targetH = Math.max(40, parseInt(document.getElementById('exam-height').value || '531', 10));
+      const ratio = targetW / targetH;
+
+      let bw = canvas.width * 0.72;
+      let bh = bw / ratio;
+      if (bh > canvas.height * 0.82) {
+        bh = canvas.height * 0.82;
+        bw = bh * ratio;
+      }
+      examState.box = {
+        x: Math.round((canvas.width - bw) / 2),
+        y: Math.round((canvas.height - bh) / 2),
+        w: Math.round(bw),
+        h: Math.round(bh),
+      };
+      syncExamCropBoxDom();
+    }
+
+    function syncExamCropBoxDom() {
+      const el = document.getElementById('exam-crop-box');
+      el.style.left = examState.box.x + 'px';
+      el.style.top = examState.box.y + 'px';
+      el.style.width = examState.box.w + 'px';
+      el.style.height = examState.box.h + 'px';
+    }
+
+    function renderExamOutput() {
+      if (!examState.img) return;
+      const stage = document.getElementById('exam-stage-canvas');
+      const outW = Math.max(40, parseInt(document.getElementById('exam-width').value || '413', 10));
+      const outH = Math.max(40, parseInt(document.getElementById('exam-height').value || '531', 10));
+      const targetBytes = Math.max(5, parseFloat(document.getElementById('exam-target-kb').value || '42')) * 1024;
+      const cleanSign = document.getElementById('exam-clean-sign').checked;
+
+      const sideways = examState.rot === 90 || examState.rot === 270;
+      const fullW = sideways ? examState.img.height : examState.img.width;
+      const fullH = sideways ? examState.img.width : examState.img.height;
+      const fullCanvas = document.createElement('canvas');
+      fullCanvas.width = fullW;
+      fullCanvas.height = fullH;
+      const fctx = fullCanvas.getContext('2d');
+      fctx.save();
+      fctx.translate(fullW / 2, fullH / 2);
+      fctx.rotate((examState.rot * Math.PI) / 180);
+      if (examState.flip) fctx.scale(-1, 1);
+      const dw = sideways ? fullH : fullW;
+      const dh = sideways ? fullW : fullH;
+      fctx.drawImage(examState.img, -dw / 2, -dh / 2, dw, dh);
+      fctx.restore();
+
+      const scaleX = fullW / stage.width;
+      const scaleY = fullH / stage.height;
+      const sx = Math.max(0, examState.box.x * scaleX);
+      const sy = Math.max(0, examState.box.y * scaleY);
+      const sw = Math.max(10, examState.box.w * scaleX);
+      const sh = Math.max(10, examState.box.h * scaleY);
+
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = outW;
+      outCanvas.height = outH;
+      const octx = outCanvas.getContext('2d');
+      octx.fillStyle = '#ffffff';
+      octx.fillRect(0, 0, outW, outH);
+      if (cleanSign) {
+        octx.filter = 'grayscale(100%) contrast(165%) brightness(115%)';
+      }
+      octx.drawImage(fullCanvas, sx, sy, sw, sh, 0, 0, outW, outH);
+      octx.filter = 'none';
+
+      let lo = 0.08, hi = 0.96, bestUrl = outCanvas.toDataURL('image/jpeg', 0.85);
+      for (let i = 0; i < 8; i++) {
+        const mid = (lo + hi) / 2;
+        const url = outCanvas.toDataURL('image/jpeg', mid);
+        const approxBytes = Math.round((url.length - 23) * 0.75);
+        if (approxBytes <= targetBytes) {
+          bestUrl = url;
+          lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
+
+      const finalBytes = Math.round((bestUrl.length - 23) * 0.75);
+      document.getElementById('exam-output-preview').src = bestUrl;
+      document.getElementById('exam-output-meta').innerHTML =
+        `Dimensions: <b class="text-white">${outW} × ${outH} px</b><br/>File Size: <b class="text-emerald-400">${(finalBytes / 1024).toFixed(1)} KB</b> (JPG)`;
+
+      const dlBtn = document.getElementById('exam-download-btn');
+      dlBtn.href = bestUrl;
+      dlBtn.download = examState.filename;
+    }
+
+    (function setupExamCropGestures() {
+      const box = document.getElementById('exam-crop-box');
+      const handle = document.getElementById('exam-crop-handle');
+      if (!box || !handle) return;
+
+      let mode = null;
+      let startX = 0, startY = 0, startBox = null;
+
+      box.addEventListener('pointerdown', (e) => {
+        if (e.target === handle) return;
+        e.preventDefault();
+        mode = 'move';
+        startX = e.clientX;
+        startY = e.clientY;
+        startBox = { ...examState.box };
+        box.setPointerCapture(e.pointerId);
+      });
+
+      handle.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        mode = 'resize';
+        startX = e.clientX;
+        startY = e.clientY;
+        startBox = { ...examState.box };
+        handle.setPointerCapture(e.pointerId);
+      });
+
+      window.addEventListener('pointermove', (e) => {
+        if (!mode) return;
+        const canvas = document.getElementById('exam-stage-canvas');
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        if (mode === 'move') {
+          examState.box.x = Math.max(0, Math.min(canvas.width - startBox.w, Math.round(startBox.x + dx)));
+          examState.box.y = Math.max(0, Math.min(canvas.height - startBox.h, Math.round(startBox.y + dy)));
+        } else if (mode === 'resize') {
+          const targetW = Math.max(40, parseInt(document.getElementById('exam-width').value || '413', 10));
+          const targetH = Math.max(40, parseInt(document.getElementById('exam-height').value || '531', 10));
+          const ratio = targetW / targetH;
+
+          let nw = Math.max(36, Math.min(canvas.width - startBox.x, startBox.w + dx));
+          let nh = examState.lockRatio
+            ? nw / ratio
+            : Math.max(36, Math.min(canvas.height - startBox.y, startBox.h + dy));
+
+          if (startBox.y + nh > canvas.height) {
+            nh = canvas.height - startBox.y;
+            if (examState.lockRatio) nw = nh * ratio;
+          }
+          examState.box.w = Math.round(nw);
+          examState.box.h = Math.round(nh);
+        }
+        syncExamCropBoxDom();
+      });
+
+      window.addEventListener('pointerup', () => {
+        if (mode) {
+          mode = null;
+          renderExamOutput();
+        }
+      });
+    })();
       // Auto-hide UFC panel whenever user switches back to Generate or Scanner tabs
       ['panel-generate', 'panel-scanner'].forEach((id) => {
         const target = document.getElementById(id);

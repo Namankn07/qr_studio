@@ -1330,6 +1330,10 @@
               </div>
 
               <p id="comp-mode-hint" class="text-[11px] text-slate-400 mt-2">Original dimensions lock rehte hain taaki text aur photo bilkul blur na hon.</p>
+              <label class="inline-flex items-center gap-2 text-[11px] text-emerald-300 mt-2 cursor-pointer">
+                <input id="comp-trim-white" type="checkbox" checked class="accent-emerald-500" />
+                <span>Auto-Crop Empty White Space (Removes A4 half-page white gaps)</span>
+              </label>
             </div>
           </div>
 
@@ -3891,6 +3895,38 @@ function ufcOpenTab() {
       return { blob: bestBlob, filename: `compressed_${base}.${ext}` };
     }
 
+function trimWhiteCanvas(srcCanvas) {
+      const w = srcCanvas.width;
+      const h = srcCanvas.height;
+      const ctx = srcCanvas.getContext('2d');
+      const data = ctx.getImageData(0, 0, w, h).data;
+
+      let bottom = h - 1;
+      let foundContent = false;
+      for (let y = h - 1; y >= 0; y--) {
+        const rowOffset = y * w * 4;
+        for (let x = 0; x < w; x += 2) {
+          const i = rowOffset + x * 4;
+          if (data[i] < 248 || data[i + 1] < 248 || data[i + 2] < 248) {
+            bottom = y;
+            foundContent = true;
+            break;
+          }
+        }
+        if (foundContent) break;
+      }
+
+      if (!foundContent) return srcCanvas;
+      const newH = Math.min(h, bottom + 12);
+      if (h - newH < 40) return srcCanvas;
+
+      const trimmed = document.createElement('canvas');
+      trimmed.width = w;
+      trimmed.height = newH;
+      trimmed.getContext('2d').drawImage(srcCanvas, 0, 0, w, newH, 0, 0, w, newH);
+      return trimmed;
+    }
+
     async function compressPdfToTarget(file, targetBytes, mode, customPct) {
       if (!window.pdfjsLib || !window.jspdf) {
         throw new Error('PDF engine still loading, please retry in 2 seconds.');
@@ -3898,6 +3934,7 @@ function ufcOpenTab() {
       const buf = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
       const { jsPDF } = window.jspdf;
+      const shouldTrim = document.getElementById('comp-trim-white')?.checked !== false;
 
       let steps;
       if (mode === 'custom') {
@@ -3909,7 +3946,6 @@ function ufcOpenTab() {
       } else if (mode === 'extreme') {
         steps = [{ scale: 1.45, q: 0.55 }];
       } else {
-        // Fine-grained HD ladder so 2 MB / 5 MB / 10 MB targets hit right below limit without losing text sharpness
         steps = [
           { scale: 2.2, q: 0.92 },
           { scale: 2.05, q: 0.84 },
@@ -3929,20 +3965,21 @@ function ufcOpenTab() {
         for (let p = 1; p <= pdf.numPages; p++) {
           const page = await pdf.getPage(p);
           const vp = page.getViewport({ scale: step.scale });
-          const w = Math.round(vp.width);
-          const h = Math.round(vp.height);
 
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
+          const rawCanvas = document.createElement('canvas');
+          rawCanvas.width = Math.round(vp.width);
+          rawCanvas.height = Math.round(vp.height);
+          const ctx = rawCanvas.getContext('2d');
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
           ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, w, h);
+          ctx.fillRect(0, 0, rawCanvas.width, rawCanvas.height);
           await page.render({ canvasContext: ctx, viewport: vp }).promise;
 
-          const imgData = canvas.toDataURL('image/jpeg', step.q);
+          const finalCanvas = shouldTrim ? trimWhiteCanvas(rawCanvas) : rawCanvas;
+          const w = finalCanvas.width;
+          const h = finalCanvas.height;
+          const imgData = finalCanvas.toDataURL('image/jpeg', step.q);
           const orient = w > h ? 'l' : 'p';
 
           if (!doc) {

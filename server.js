@@ -147,8 +147,55 @@ app.get('/sitemap.xml', (req, res) => {
 });
 
 // =========================================================================
-// UNIVERSAL MEDIA DOWNLOADER API (ZERO SERVER STORAGE - DIRECT STREAM)
+// UNIVERSAL MEDIA DOWNLOADER API (yt-dlp + MULTI-ENGINE - ZERO STORAGE)
 // =========================================================================
+const os = require('os');
+const fs = require('fs');
+const { execFile } = require('child_process');
+
+const YT_DLP_BIN = path.join(
+  os.tmpdir(),
+  process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'
+);
+let ytDlpReadyPromise = null;
+
+// Auto-download standalone yt-dlp binary on server boot (No Python needed)
+function ensureYtDlpBinary() {
+  if (ytDlpReadyPromise) return ytDlpReadyPromise;
+
+  ytDlpReadyPromise = (async () => {
+    try {
+      if (fs.existsSync(YT_DLP_BIN) && fs.statSync(YT_DLP_BIN).size > 1000000) {
+        return YT_DLP_BIN;
+      }
+      const downloadUrl =
+        process.platform === 'win32'
+          ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
+          : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux';
+
+      console.log('Downloading latest yt-dlp binary...');
+      const res = await fetch(downloadUrl);
+      if (!res.ok) throw new Error(`Failed to fetch yt-dlp: ${res.status}`);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      fs.writeFileSync(YT_DLP_BIN, buffer);
+      if (process.platform !== 'win32') {
+        fs.chmodSync(YT_DLP_BIN, 0o755);
+      }
+      console.log('yt-dlp binary ready!');
+      return YT_DLP_BIN;
+    } catch (err) {
+      ytDlpReadyPromise = null;
+      console.error('yt-dlp setup error:', err.message);
+      return null;
+    }
+  })();
+
+  return ytDlpReadyPromise;
+}
+
+// Warm up binary immediately when server starts
+ensureYtDlpBinary();
+
 function isBlockedHost(hostname) {
   const h = (hostname || '').toLowerCase();
   return (
@@ -161,6 +208,42 @@ function isBlockedHost(hostname) {
     h.startsWith('169.254.') ||
     /^172\.(1[6-9]|2\d|3[01])\./.test(h)
   );
+}
+
+function runYtDlpExtract(binPath, targetUrl) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      '--dump-single-json',
+      '--no-warnings',
+      '--no-playlist',
+      '--no-check-certificates',
+      '--geo-bypass',
+      '--extractor-args',
+      'youtube:player_client=ios,android,web',
+      '--user-agent',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    ];
+
+    // Optional Cookies support via Render Env (YT_COOKIES)
+    if (process.env.YT_COOKIES) {
+      const cookiePath = path.join(os.tmpdir(), 'yt_cookies.txt');
+      fs.writeFileSync(cookiePath, process.env.YT_COOKIES);
+      args.push('--cookies', cookiePath);
+    }
+
+    args.push(targetUrl);
+
+    execFile(binPath, args, { timeout: 25000, maxBuffer: 15 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        return reject(new Error(stderr || err.message));
+      }
+      try {
+        resolve(JSON.parse(stdout));
+      } catch (parseErr) {
+        reject(new Error('Invalid media metadata received'));
+      }
+    });
+  });
 }
 
 app.post('/api/universal-download', async (req, res) => {
@@ -189,7 +272,7 @@ app.post('/api/universal-download', async (req, res) => {
     const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
     const pathname = parsed.pathname.toLowerCase();
 
-    // 1. Direct Media / Document File URLs (.mp4, .mp3, .jpg, .png, .pdf, .zip, etc.)
+    // 1. Direct Media / Document File URLs (.mp4, .mp3, .jpg, .pdf, .zip, Cloudinary)
     const directExtMatch = pathname.match(/\.(mp4|webm|mov|mkv|mp3|wav|m4a|ogg|jpg|jpeg|png|webp|gif|pdf|zip)$/i);
     if (directExtMatch || (host.includes('cloudinary.com') && pathname.includes('/upload/'))) {
       const ext = directExtMatch ? directExtMatch[1].toLowerCase() : 'mp4';
@@ -211,7 +294,6 @@ app.post('/api/universal-download', async (req, res) => {
       });
     }
 
-    // 2. Social & Video Platforms (YouTube, Instagram, Facebook, X, TikTok, Vimeo, etc.)
     let platform = 'Web Media';
     if (host.includes('youtube.com') || host.includes('youtu.be')) platform = 'YouTube';
     else if (host.includes('instagram.com')) platform = 'Instagram';
@@ -219,40 +301,125 @@ app.post('/api/universal-download', async (req, res) => {
     else if (host.includes('twitter.com') || host.includes('x.com')) platform = 'X (Twitter)';
     else if (host.includes('tiktok.com')) platform = 'TikTok';
     else if (host.includes('pinterest.')) platform = 'Pinterest';
+    else if (host.includes('reddit.com')) platform = 'Reddit';
+    else if (host.includes('vimeo.com')) platform = 'Vimeo';
 
-    // Try open Cobalt extraction nodes
-    const cobaltNodes = [
-      'https://api.cobalt.tools/',
-      'https://cobalt-api.kwiatekmiki.com/',
-      'https://cobalt-backend.canine.tools/',
-    ];
-
-    for (const apiEndpoint of cobaltNodes) {
+    // 2. Primary Universal Extractor: yt-dlp (Supports 1000+ sites)
+    const binPath = await ensureYtDlpBinary();
+    if (binPath) {
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 7000);
-        const cRes = await fetch(apiEndpoint, {
+        const info = await runYtDlpExtract(binPath, rawUrl);
+        const title = (info.title || `${platform} Media`).slice(0, 120);
+        const safeBase = title.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 50) || 'video';
+        const thumbnail = info.thumbnail || '';
+        const formats = Array.isArray(info.formats) ? info.formats : [];
+        const items = [];
+
+        if (mode === 'audio') {
+          // Pick best direct audio stream (m4a / mp3 / webm)
+          const audioFormats = formats
+            .filter((f) => f.url && /^https?:/.test(f.url) && f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))
+            .sort((a, b) => (b.abr || b.tbr || 0) - (a.abr || a.tbr || 0));
+
+          const bestAudio = audioFormats[0] || formats.find((f) => f.url && f.acodec && f.acodec !== 'none');
+          if (bestAudio && bestAudio.url) {
+            const ext = bestAudio.ext === 'webm' ? 'webm' : 'm4a';
+            const fname = `${safeBase}_audio.${ext}`;
+            items.push({
+              label: `Download Audio (${Math.round(bestAudio.abr || 128)}kbps ${ext.toUpperCase()})`,
+              filename: fname,
+              proxyUrl: `/api/proxy-download?url=${encodeURIComponent(bestAudio.url)}&filename=${encodeURIComponent(fname)}`,
+              directUrl: bestAudio.url,
+            });
+          }
+        } else {
+          // Progressive MP4/Video streams with both Video + Audio (Instant stream, no ffmpeg needed)
+          const progressive = formats
+            .filter(
+              (f) =>
+                f.url &&
+                /^https?:/.test(f.url) &&
+                f.vcodec &&
+                f.vcodec !== 'none' &&
+                f.acodec &&
+                f.acodec !== 'none'
+            )
+            .sort((a, b) => (b.height || 0) - (a.height || 0));
+
+          // Deduplicate by resolution height
+          const seenHeights = new Set();
+          for (const f of progressive) {
+            const h = f.height || 'HD';
+            if (seenHeights.has(h)) continue;
+            seenHeights.add(h);
+            const ext = f.ext || 'mp4';
+            const fname = `${safeBase}_${h}p.${ext}`;
+            items.push({
+              label: `Download Video (${h}p ${ext.toUpperCase()})`,
+              filename: fname,
+              proxyUrl: `/api/proxy-download?url=${encodeURIComponent(f.url)}&filename=${encodeURIComponent(fname)}`,
+              directUrl: f.url,
+            });
+            if (items.length >= 2) break; // Top 2 qualities (e.g. 720p HD & 360p SD)
+          }
+
+          // Fallback if platform returns single direct URL without progressive format flags (e.g. Reels/TikTok/X)
+          if (items.length === 0) {
+            const fallbackFormat =
+              formats.filter((f) => f.url && /^https?:/.test(f.url) && f.vcodec !== 'none').pop() ||
+              (info.url && /^https?:/.test(info.url) ? { url: info.url, ext: info.ext || 'mp4' } : null);
+
+            if (fallbackFormat && fallbackFormat.url) {
+              const ext = fallbackFormat.ext || 'mp4';
+              const fname = `${safeBase}.${ext}`;
+              items.push({
+                label: `Download Video (HD ${ext.toUpperCase()})`,
+                filename: fname,
+                proxyUrl: `/api/proxy-download?url=${encodeURIComponent(fallbackFormat.url)}&filename=${encodeURIComponent(fname)}`,
+                directUrl: fallbackFormat.url,
+              });
+            }
+          }
+        }
+
+        if (items.length > 0) {
+          return res.json({
+            success: true,
+            platform: info.extractor_key || platform,
+            title,
+            thumbnail,
+            items,
+          });
+        }
+      } catch (ytErr) {
+        console.warn('yt-dlp fallback triggered:', ytErr.message.slice(0, 180));
+      }
+    }
+
+    // 3. Optional Custom Self-Hosted Cobalt Node (Set COBALT_API_URL in Render Env)
+    if (process.env.COBALT_API_URL) {
+      try {
+        const headers = {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        };
+        if (process.env.COBALT_API_KEY) {
+          headers.Authorization = `Api-Key ${process.env.COBALT_API_KEY.trim()}`;
+        }
+        const cRes = await fetch(process.env.COBALT_API_URL.trim(), {
           method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             url: rawUrl,
             downloadMode: mode === 'audio' ? 'audio' : 'auto',
             videoQuality: '1080',
-            audioFormat: 'mp3',
-            filenameStyle: 'pretty',
           }),
-          signal: controller.signal,
         });
-        clearTimeout(timer);
-
         if (cRes.ok) {
           const data = await cRes.json();
           if ((data.status === 'tunnel' || data.status === 'redirect') && data.url) {
             const ext = mode === 'audio' ? 'mp3' : 'mp4';
-            const fname = data.filename || `${platform.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}.${ext}`;
+            const fname = data.filename || `${platform.toLowerCase()}_${Date.now()}.${ext}`;
             return res.json({
               success: true,
               platform,
@@ -268,38 +435,16 @@ app.post('/api/universal-download', async (req, res) => {
               ],
             });
           }
-
-          if (data.status === 'picker' && Array.isArray(data.picker) && data.picker.length > 0) {
-            const items = data.picker.map((item, idx) => {
-              const isPhoto = item.type === 'photo';
-              const ext = isPhoto ? 'jpg' : 'mp4';
-              const fname = `${platform.toLowerCase()}_${idx + 1}_${Date.now()}.${ext}`;
-              return {
-                label: isPhoto ? `Download Photo #${idx + 1}` : `Download Video #${idx + 1}`,
-                filename: fname,
-                proxyUrl: `/api/proxy-download?url=${encodeURIComponent(item.url)}&filename=${encodeURIComponent(fname)}`,
-                directUrl: item.url,
-              };
-            });
-            return res.json({
-              success: true,
-              platform,
-              title: `${platform} Carousel (${items.length} files)`,
-              thumbnail: data.picker[0].thumb || '',
-              items,
-            });
-          }
         }
-      } catch (nodeErr) {
-        // Try next node
-      }
+      } catch (e) {}
     }
 
-    // 3. Built-in Meta / OpenGraph Media Extractor Fallback (Instagram, Facebook, X, Pinterest, Web)
+    // 4. OpenGraph / Direct HTML <video> Tag Scraper Fallback
     try {
       const pageRes = await fetch(rawUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'User-Agent':
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
           Accept: 'text/html,application/xhtml+xml',
         },
       });
@@ -312,7 +457,12 @@ app.post('/api/universal-download', async (req, res) => {
       };
 
       const ogTitle = getMeta('og:title') || getMeta('twitter:title') || `${platform} Media`;
-      const ogVideo = getMeta('og:video:secure_url') || getMeta('og:video') || getMeta('twitter:player:stream');
+      const rawVideoMatch = html.match(/https?:\/\/[^"'\\\s]+\.mp4[^"'\\\s]*/i);
+      const ogVideo =
+        getMeta('og:video:secure_url') ||
+        getMeta('og:video') ||
+        getMeta('twitter:player:stream') ||
+        (rawVideoMatch ? rawVideoMatch[0].replace(/\\u0026/g, '&') : '');
       const ogImage = getMeta('og:image') || getMeta('twitter:image');
 
       const items = [];
@@ -328,7 +478,7 @@ app.post('/api/universal-download', async (req, res) => {
       if (ogImage && /^https?:\/\//i.test(ogImage)) {
         const iName = `${platform.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}.jpg`;
         items.push({
-          label: ogVideo ? 'Download Cover / Thumbnail (JPG)' : 'Download Photo / Image (JPG)',
+          label: ogVideo ? 'Download Thumbnail (JPG)' : 'Download Image (JPG)',
           filename: iName,
           proxyUrl: `/api/proxy-download?url=${encodeURIComponent(ogImage)}&filename=${encodeURIComponent(iName)}`,
           directUrl: ogImage,
@@ -346,46 +496,18 @@ app.post('/api/universal-download', async (req, res) => {
       }
     } catch (metaErr) {}
 
-    // 4. YouTube Thumbnail + Fast Mirror Fallback if Cloud IP is rate-limited
-    const ytMatch = rawUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
-    if (ytMatch) {
-      const vidId = ytMatch[1];
-      const thumbUrl = `https://i.ytimg.com/vi/${vidId}/hqdefault.jpg`;
-      return res.json({
-        success: true,
-        platform: 'YouTube',
-        title: `YouTube Video (${vidId})`,
-        thumbnail: thumbUrl,
-        items: [
-          {
-            label: 'Fast MP4 / MP3 Download Mirror 1',
-            filename: `youtube_${vidId}.mp4`,
-            proxyUrl: `https://cobalt.tools/#${encodeURIComponent(rawUrl)}`,
-            directUrl: `https://cobalt.tools/#${encodeURIComponent(rawUrl)}`,
-            external: true,
-          },
-          {
-            label: 'Download HD Video Thumbnail (JPG)',
-            filename: `youtube_${vidId}_thumb.jpg`,
-            proxyUrl: `/api/proxy-download?url=${encodeURIComponent(thumbUrl)}&filename=youtube_${vidId}.jpg`,
-            directUrl: thumbUrl,
-          },
-        ],
-      });
-    }
-
     return res.status(422).json({
-      error: 'This link may be private or login-protected. Make sure the post/video is Public and try again.',
+      error: 'Could not extract video. Ensure the link is Public (not private/login-only) and try again.',
     });
   } catch (err) {
-    return res.status(500).json({ error: 'Could not process this link right now. Please try again.' });
+    return res.status(500).json({ error: 'Server error while processing link. Please try again.' });
   }
 });
 
-// Zero-Storage Direct Stream Proxy (Forces browser download without saving on Render)
+// Zero-Storage Direct Stream Proxy (Streams directly to user's Downloads folder)
 app.get('/api/proxy-download', (req, res) => {
   const targetUrl = String(req.query.url || '').trim();
-  const safeFilename = String(req.query.filename || 'qr_studio_download.mp4').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const safeFilename = String(req.query.filename || 'qr_studio_video.mp4').replace(/[^a-zA-Z0-9._-]/g, '_');
 
   if (!targetUrl || !/^https?:\/\//i.test(targetUrl)) {
     return res.status(400).send('Invalid download URL');
@@ -395,7 +517,7 @@ app.get('/api/proxy-download', (req, res) => {
   const httpsMod = require('https');
 
   function streamWithRedirects(currentUrl, hops = 0) {
-    if (hops > 5) return res.status(502).send('Too many redirects');
+    if (hops > 6) return res.status(502).send('Too many redirects');
     let parsed;
     try {
       parsed = new URL(currentUrl);
@@ -410,7 +532,9 @@ app.get('/api/proxy-download', (req, res) => {
         currentUrl,
         {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            Accept: '*/*',
             Referer: parsed.origin + '/',
           },
         },
@@ -427,9 +551,7 @@ app.get('/api/proxy-download', (req, res) => {
           }
 
           res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
-          if (upstream.headers['content-type']) {
-            res.setHeader('Content-Type', upstream.headers['content-type']);
-          }
+          res.setHeader('Content-Type', upstream.headers['content-type'] || 'application/octet-stream');
           if (upstream.headers['content-length']) {
             res.setHeader('Content-Length', upstream.headers['content-length']);
           }

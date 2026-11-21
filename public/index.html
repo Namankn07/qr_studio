@@ -3111,7 +3111,7 @@ async function extractFromUserBrowser(rawUrl, mode) {
   }
   const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
 
-  // 1. YouTube via User's Browser IP (Bypasses Render Cloud IP Block)
+  // 1. YouTube via User's Browser IP
   const ytMatch = parsed.href.match(
     /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|v\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
   );
@@ -3125,7 +3125,10 @@ async function extractFromUserBrowser(rawUrl, mode) {
     ];
     for (const api of pipedMirrors) {
       try {
-        const res = await fetch(`${api}/streams/${videoId}`);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(`${api}/streams/${videoId}`, { signal: controller.signal });
+        clearTimeout(timer);
         if (!res.ok) continue;
         const data = await res.json();
         const title = (data.title || 'YouTube Video').slice(0, 100);
@@ -3174,7 +3177,7 @@ async function extractFromUserBrowser(rawUrl, mode) {
     }
   }
 
-  // 2. X / Twitter via FxTwitter (Browser IP)
+  // 2. X / Twitter via FxTwitter
   if (host.includes('twitter.com') || host.includes('x.com')) {
     try {
       const apiUrl = parsed.href.replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)/i, 'https://api.fxtwitter.com');
@@ -3199,7 +3202,7 @@ async function extractFromUserBrowser(rawUrl, mode) {
     } catch (e) {}
   }
 
-  // 3. TikTok via TikWM (Browser IP)
+  // 3. TikTok via TikWM
   if (host.includes('tiktok.com')) {
     try {
       const res = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(parsed.href)}`);
@@ -3229,7 +3232,7 @@ async function extractFromUserBrowser(rawUrl, mode) {
 
 async function startUniversalDownload() {
   const urlInput = document.getElementById('dl-url-input');
-  const url = (urlInput.value || '').trim();
+  const url = ((urlInput && urlInput.value) || '').trim();
   const mode = typeof currentDownloaderMode !== 'undefined' ? currentDownloaderMode : 'video';
   const resultBox = document.getElementById('dl-result-box');
   const errorBox = document.getElementById('dl-error-box');
@@ -3242,25 +3245,29 @@ async function startUniversalDownload() {
   const fetchBtn = document.getElementById('dl-fetch-btn') || (statusText && statusText.closest('button'));
 
   if (!url) {
-    showToast('Please paste a video, reel, audio, or file link first.', 'error');
+    if (typeof showToast === 'function') {
+      showToast('Please paste a video, reel, audio, or file link first.', 'error');
+    } else {
+      alert('Please paste a video, reel, audio, or file link first.');
+    }
     return;
   }
 
-  errorBox.classList.add('hidden');
-  resultBox.classList.add('hidden');
-  btnList.innerHTML = '';
-  spinner.classList.remove('hidden');
-  statusText.textContent = 'Extracting...';
+  if (errorBox) errorBox.classList.add('hidden');
+  if (resultBox) resultBox.classList.add('hidden');
+  if (btnList) btnList.innerHTML = '';
+  if (spinner) spinner.classList.remove('hidden');
+  if (statusText) statusText.textContent = 'Extracting...';
   if (fetchBtn) {
     fetchBtn.disabled = true;
     fetchBtn.classList.add('opacity-60');
   }
 
   try {
-    // Step 1: User's Own Browser IP First
+    // Step 1: User's Browser IP First (5s fast timeout per mirror)
     let data = await extractFromUserBrowser(url, mode);
 
-    // Step 2: Server API Fallback
+    // Step 2: Server API Fallback (RapidAPI / Insta / FB / Direct Files)
     if (!data) {
       const response = await fetch('/api/universal-download', {
         method: 'POST',
@@ -3274,8 +3281,8 @@ async function startUniversalDownload() {
       data = serverData;
     }
 
-    platformEl.textContent = data.platform || 'Media Ready';
-    titleEl.textContent = data.title || 'Download Ready';
+    if (platformEl) platformEl.textContent = data.platform || 'Media Ready';
+    if (titleEl) titleEl.textContent = data.title || 'Download Ready';
     if (data.thumbnail && thumbEl) {
       thumbEl.src = data.thumbnail;
       thumbEl.classList.remove('hidden');
@@ -3283,32 +3290,40 @@ async function startUniversalDownload() {
       thumbEl.classList.add('hidden');
     }
 
-    data.items.forEach((item) => {
-      const a = document.createElement('a');
-      a.href = item.useDirectOnly ? item.directUrl : (item.proxyUrl || item.directUrl);
-      if (item.useDirectOnly) {
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-      } else {
-        a.setAttribute('download', item.filename || 'download');
-      }
-      a.className =
-        'px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm flex items-center justify-center gap-2 transition shadow-lg';
-      a.textContent = item.label || 'Download Now';
-      a.onclick = () => {
-        showToast(`Downloading ${item.filename || 'media'}...`, 'info');
-      };
-      btnList.appendChild(a);
-    });
+    if (btnList) {
+      data.items.forEach((item) => {
+        const a = document.createElement('a');
+        a.href = item.useDirectOnly ? item.directUrl : (item.proxyUrl || item.directUrl);
+        if (item.useDirectOnly) {
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        } else {
+          a.setAttribute('download', item.filename || 'download');
+        }
+        a.className =
+          'px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm flex items-center justify-center gap-2 transition shadow-lg';
+        a.textContent = item.label || 'Download Now';
+        a.onclick = () => {
+          if (typeof showToast === 'function') {
+            showToast(`Downloading ${item.filename || 'media'}...`, 'info');
+          }
+        };
+        btnList.appendChild(a);
+      });
+    }
 
-    resultBox.classList.remove('hidden');
-    showToast('Download ready! Click button to save.', 'success');
+    if (resultBox) resultBox.classList.remove('hidden');
+    if (typeof showToast === 'function') {
+      showToast('Download ready! Click button to save.', 'success');
+    }
   } catch (err) {
-    errorBox.textContent = err.message || 'Download failed. Ensure link is public.';
-    errorBox.classList.remove('hidden');
+    if (errorBox) {
+      errorBox.textContent = err.message || 'Download failed. Ensure link is public.';
+      errorBox.classList.remove('hidden');
+    }
   } finally {
-    spinner.classList.add('hidden');
-    statusText.textContent = 'Get Download Link';
+    if (spinner) spinner.classList.add('hidden');
+    if (statusText) statusText.textContent = 'Get Download Link';
     if (fetchBtn) {
       fetchBtn.disabled = false;
       fetchBtn.classList.remove('opacity-60');

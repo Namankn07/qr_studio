@@ -246,11 +246,336 @@ function runYtDlpExtract(binPath, targetUrl) {
   });
 }
 
+// Helper: Fetch with clean timeout
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Helper: Extract 11-char YouTube Video ID
+function extractYouTubeId(rawUrl) {
+  const m = rawUrl.match(
+    /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|v\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  );
+  return m ? m[1] : null;
+}
+
+// Engine A: Unblocked YouTube Extractor (Piped + Invidious Mirrors - No Cookies Needed)
+async function extractYouTubeUnblocked(videoId, mode) {
+  const pipedNodes = [
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi.adminforge.de',
+    'https://api.piped.private.coffee',
+    'https://pipedapi.nosebs.ru',
+  ];
+
+  for (const node of pipedNodes) {
+    try {
+      const r = await fetchWithTimeout(
+        `${node}/streams/${videoId}`,
+        { headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0' } },
+        8000
+      );
+      if (!r.ok) continue;
+      const data = await r.json();
+      const title = (data.title || 'YouTube_Video').slice(0, 110);
+      const safeBase = title.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 45) || 'youtube_video';
+      const thumbnail = data.thumbnailUrl || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+      const items = [];
+
+      if (mode === 'audio') {
+        const audios = (data.audioStreams || [])
+          .filter((a) => a.url && /^https?:/.test(a.url))
+          .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+        if (audios[0]) {
+          const ext = (audios[0].format || '').toLowerCase().includes('webm') ? 'webm' : 'm4a';
+          const fname = `${safeBase}_audio.${ext}`;
+          items.push({
+            label: `Download Audio (${Math.round((audios[0].bitrate || 128000) / 1000)}kbps ${ext.toUpperCase()})`,
+            filename: fname,
+            proxyUrl: `/api/proxy-download?url=${encodeURIComponent(audios[0].url)}&filename=${encodeURIComponent(fname)}`,
+            directUrl: audios[0].url,
+          });
+        }
+      } else {
+        const muxed = (data.videoStreams || [])
+          .filter((v) => v.url && /^https?:/.test(v.url) && v.videoOnly === false)
+          .sort((a, b) => parseInt(b.quality || '0', 10) - parseInt(a.quality || '0', 10));
+
+        const seen = new Set();
+        for (const v of muxed) {
+          const q = v.quality || 'HD';
+          if (seen.has(q)) continue;
+          seen.add(q);
+          const ext = (v.format || 'mp4').toLowerCase().includes('webm') ? 'webm' : 'mp4';
+          const fname = `${safeBase}_${q}.${ext}`;
+          items.push({
+            label: `Download Video (${q} ${ext.toUpperCase()})`,
+            filename: fname,
+            proxyUrl: `/api/proxy-download?url=${encodeURIComponent(v.url)}&filename=${encodeURIComponent(fname)}`,
+            directUrl: v.url,
+          });
+          if (items.length >= 2) break;
+        }
+      }
+
+      if (items.length > 0) {
+        return { success: true, platform: 'YouTube', title, thumbnail, items };
+      }
+    } catch (e) {}
+  }
+
+  const invidiousNodes = [
+    'https://inv.nadeko.net',
+    'https://invidious.nerdvpn.de',
+    'https://yewtu.be',
+  ];
+
+  for (const node of invidiousNodes) {
+    try {
+      const r = await fetchWithTimeout(
+        `${node}/api/v1/videos/${videoId}`,
+        { headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0' } },
+        8000
+      );
+      if (!r.ok) continue;
+      const data = await r.json();
+      const title = (data.title || 'YouTube_Video').slice(0, 110);
+      const safeBase = title.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 45) || 'youtube_video';
+      const thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+      const items = [];
+
+      if (mode === 'audio') {
+        const audios = (data.adaptiveFormats || [])
+          .filter((f) => f.url && (f.type || '').startsWith('audio/'))
+          .sort((a, b) => parseInt(b.bitrate || '0', 10) - parseInt(a.bitrate || '0', 10));
+        if (audios[0]) {
+          const ext = (audios[0].container || 'm4a').toLowerCase();
+          const fname = `${safeBase}_audio.${ext}`;
+          items.push({
+            label: `Download Audio (${ext.toUpperCase()})`,
+            filename: fname,
+            proxyUrl: `/api/proxy-download?url=${encodeURIComponent(audios[0].url)}&filename=${encodeURIComponent(fname)}`,
+            directUrl: audios[0].url,
+          });
+        }
+      } else {
+        const streams = (data.formatStreams || [])
+          .filter((f) => f.url && /^https?:/.test(f.url))
+          .sort((a, b) => parseInt(b.qualityLabel || '0', 10) - parseInt(a.qualityLabel || '0', 10));
+
+        for (const s of streams.slice(0, 2)) {
+          const q = s.qualityLabel || '720p';
+          const ext = (s.container || 'mp4').toLowerCase();
+          const fname = `${safeBase}_${q}.${ext}`;
+          items.push({
+            label: `Download Video (${q} ${ext.toUpperCase()})`,
+            filename: fname,
+            proxyUrl: `/api/proxy-download?url=${encodeURIComponent(s.url)}&filename=${encodeURIComponent(fname)}`,
+            directUrl: s.url,
+          });
+        }
+      }
+
+      if (items.length > 0) {
+        return { success: true, platform: 'YouTube', title, thumbnail, items };
+      }
+    } catch (e) {}
+  }
+
+  return null;
+}
+
+// Engine B: Fast Social Extractors (X/Twitter, TikTok, Instagram Embed, Facebook)
+async function extractSocialFast(rawUrl, host, mode) {
+  // 1. X / Twitter via FxTwitter API
+  if (host.includes('twitter.com') || host.includes('x.com')) {
+    try {
+      const apiUrl = rawUrl.replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)/i, 'https://api.fxtwitter.com');
+      const r = await fetchWithTimeout(apiUrl, { headers: { 'User-Agent': 'QRStudioBot/1.0' } }, 8000);
+      if (r.ok) {
+        const data = await r.json();
+        const videos = data?.tweet?.media?.videos || [];
+        if (videos[0]?.url) {
+          const fname = `x_video_${Date.now()}.mp4`;
+          return {
+            success: true,
+            platform: 'X (Twitter)',
+            title: (data.tweet.text || 'X Video').slice(0, 100),
+            thumbnail: videos[0].thumbnail_url || '',
+            items: [
+              {
+                label: 'Download Video (HD MP4)',
+                filename: fname,
+                proxyUrl: `/api/proxy-download?url=${encodeURIComponent(videos[0].url)}&filename=${encodeURIComponent(fname)}`,
+                directUrl: videos[0].url,
+              },
+            ],
+          };
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 2. TikTok via TikWM API (HD No-Watermark)
+  if (host.includes('tiktok.com')) {
+    try {
+      const r = await fetchWithTimeout(
+        `https://www.tikwm.com/api/?url=${encodeURIComponent(rawUrl)}`,
+        { headers: { Accept: 'application/json' } },
+        9000
+      );
+      if (r.ok) {
+        const data = await r.json();
+        const d = data?.data;
+        if (d) {
+          const mediaUrl = mode === 'audio' ? (d.music || d.play) : (d.hdplay || d.play);
+          if (mediaUrl) {
+            const ext = mode === 'audio' ? 'mp3' : 'mp4';
+            const fname = `tiktok_${Date.now()}.${ext}`;
+            return {
+              success: true,
+              platform: 'TikTok',
+              title: (d.title || 'TikTok Video').slice(0, 100),
+              thumbnail: d.cover || '',
+              items: [
+                {
+                  label: mode === 'audio' ? 'Download Audio (MP3)' : 'Download Video (No Watermark HD)',
+                  filename: fname,
+                  proxyUrl: `/api/proxy-download?url=${encodeURIComponent(mediaUrl)}&filename=${encodeURIComponent(fname)}`,
+                  directUrl: mediaUrl,
+                },
+              ],
+            };
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 3. Instagram Reel/Post Embed Parser (Bypasses Login Wall)
+  if (host.includes('instagram.com')) {
+    try {
+      const codeMatch = rawUrl.match(/\/(?:reel|reels|p|tv)\/([a-zA-Z0-9_-]+)/i);
+      if (codeMatch) {
+        const embedUrl = `https://www.instagram.com/reel/${codeMatch[1]}/embed/captioned/`;
+        const r = await fetchWithTimeout(
+          embedUrl,
+          {
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+              Accept: 'text/html',
+            },
+          },
+          9000
+        );
+        if (r.ok) {
+          const html = await r.text();
+          const vidMatch =
+            html.match(/"video_url":"(https:[^"]+)"/) ||
+            html.match(/<video[^>]+src="([^"]+)"/i);
+          if (vidMatch && vidMatch[1]) {
+            const cleanVideo = vidMatch[1]
+              .replace(/\\u0026/g, '&')
+              .replace(/\\\//g, '/')
+              .replace(/&amp;/g, '&');
+            const imgMatch = html.match(/<img[^>]+class="EmbeddedMediaImage"[^>]+src="([^"]+)"/i);
+            const fname = `instagram_reel_${Date.now()}.mp4`;
+            return {
+              success: true,
+              platform: 'Instagram',
+              title: 'Instagram Reel / Video',
+              thumbnail: imgMatch ? imgMatch[1].replace(/&amp;/g, '&') : '',
+              items: [
+                {
+                  label: 'Download Reel / Video (HD MP4)',
+                  filename: fname,
+                  proxyUrl: `/api/proxy-download?url=${encodeURIComponent(cleanVideo)}&filename=${encodeURIComponent(fname)}`,
+                  directUrl: cleanVideo,
+                },
+              ],
+            };
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 4. Facebook Public Video / Reel Extractor
+  if (host.includes('facebook.com') || host.includes('fb.watch')) {
+    try {
+      const r = await fetchWithTimeout(
+        rawUrl,
+        {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml',
+            'Sec-Fetch-Site': 'none',
+          },
+        },
+        10000
+      );
+      if (r.ok) {
+        const html = await r.text();
+        const hdMatch =
+          html.match(/"browser_native_hd_url":"([^"]+)"/) ||
+          html.match(/"playable_url_quality_hd":"([^"]+)"/);
+        const sdMatch =
+          html.match(/"browser_native_sd_url":"([^"]+)"/) ||
+          html.match(/"playable_url":"([^"]+)"/);
+
+        const decodeFb = (u) => u.replace(/\\\//g, '/').replace(/\\u0025/g, '%').replace(/\\u0026/g, '&');
+        const items = [];
+
+        if (hdMatch && hdMatch[1]) {
+          const hdUrl = decodeFb(hdMatch[1]);
+          const fname = `facebook_hd_${Date.now()}.mp4`;
+          items.push({
+            label: 'Download Video (HD MP4)',
+            filename: fname,
+            proxyUrl: `/api/proxy-download?url=${encodeURIComponent(hdUrl)}&filename=${encodeURIComponent(fname)}`,
+            directUrl: hdUrl,
+          });
+        }
+        if (sdMatch && sdMatch[1]) {
+          const sdUrl = decodeFb(sdMatch[1]);
+          const fname = `facebook_sd_${Date.now()}.mp4`;
+          items.push({
+            label: 'Download Video (SD MP4)',
+            filename: fname,
+            proxyUrl: `/api/proxy-download?url=${encodeURIComponent(sdUrl)}&filename=${encodeURIComponent(fname)}`,
+            directUrl: sdUrl,
+          });
+        }
+
+        if (items.length > 0) {
+          return {
+            success: true,
+            platform: 'Facebook',
+            title: 'Facebook Video / Reel',
+            thumbnail: '',
+            items,
+          };
+        }
+      }
+    } catch (e) {}
+  }
+
+  return null;
+}
+
 app.post('/api/universal-download', async (req, res) => {
   try {
     let rawUrl = String((req.body && req.body.url) || '').trim();
     const mode = String((req.body && req.body.mode) || 'video').toLowerCase();
-       let ytDlpReason = '';
+
     if (!rawUrl) {
       return res.status(400).json({ error: 'Please paste a valid video, reel, audio, or file link.' });
     }
@@ -304,7 +629,20 @@ app.post('/api/universal-download', async (req, res) => {
     else if (host.includes('reddit.com')) platform = 'Reddit';
     else if (host.includes('vimeo.com')) platform = 'Vimeo';
 
-    // 2. Primary Universal Extractor: yt-dlp (Supports 1000+ sites)
+    // 2. Fast Unblocked YouTube Mirrors (Works on Render without Cookies)
+    if (platform === 'YouTube') {
+      const ytId = extractYouTubeId(rawUrl);
+      if (ytId) {
+        const ytResult = await extractYouTubeUnblocked(ytId, mode);
+        if (ytResult) return res.json(ytResult);
+      }
+    }
+
+    // 3. Fast Social Media APIs (Instagram, Facebook, X, TikTok)
+    const socialResult = await extractSocialFast(rawUrl, host, mode);
+    if (socialResult) return res.json(socialResult);
+
+    // 4. Universal yt-dlp Engine (1000+ Sites & Backup)
     const binPath = await ensureYtDlpBinary();
     if (binPath) {
       try {
@@ -316,7 +654,6 @@ app.post('/api/universal-download', async (req, res) => {
         const items = [];
 
         if (mode === 'audio') {
-          // Pick best direct audio stream (m4a / mp3 / webm)
           const audioFormats = formats
             .filter((f) => f.url && /^https?:/.test(f.url) && f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))
             .sort((a, b) => (b.abr || b.tbr || 0) - (a.abr || a.tbr || 0));
@@ -333,7 +670,6 @@ app.post('/api/universal-download', async (req, res) => {
             });
           }
         } else {
-          // Progressive MP4/Video streams with both Video + Audio (Instant stream, no ffmpeg needed)
           const progressive = formats
             .filter(
               (f) =>
@@ -346,7 +682,6 @@ app.post('/api/universal-download', async (req, res) => {
             )
             .sort((a, b) => (b.height || 0) - (a.height || 0));
 
-          // Deduplicate by resolution height
           const seenHeights = new Set();
           for (const f of progressive) {
             const h = f.height || 'HD';
@@ -360,10 +695,9 @@ app.post('/api/universal-download', async (req, res) => {
               proxyUrl: `/api/proxy-download?url=${encodeURIComponent(f.url)}&filename=${encodeURIComponent(fname)}`,
               directUrl: f.url,
             });
-            if (items.length >= 2) break; // Top 2 qualities (e.g. 720p HD & 360p SD)
+            if (items.length >= 2) break;
           }
 
-          // Fallback if platform returns single direct URL without progressive format flags (e.g. Reels/TikTok/X)
           if (items.length === 0) {
             const fallbackFormat =
               formats.filter((f) => f.url && /^https?:/.test(f.url) && f.vcodec !== 'none').pop() ||
@@ -391,64 +725,24 @@ app.post('/api/universal-download', async (req, res) => {
             items,
           });
         }
-     } catch (ytErr) {
-        ytDlpReason = ytErr.message || '';
-        console.warn('yt-dlp fallback triggered:', ytDlpReason.slice(0, 200));
+      } catch (ytErr) {
+        console.warn('yt-dlp fallback triggered:', (ytErr.message || '').slice(0, 180));
       }
     }
 
-    // 3. Optional Custom Self-Hosted Cobalt Node (Set COBALT_API_URL in Render Env)
-    if (process.env.COBALT_API_URL) {
-      try {
-        const headers = {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        };
-        if (process.env.COBALT_API_KEY) {
-          headers.Authorization = `Api-Key ${process.env.COBALT_API_KEY.trim()}`;
-        }
-        const cRes = await fetch(process.env.COBALT_API_URL.trim(), {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            url: rawUrl,
-            downloadMode: mode === 'audio' ? 'audio' : 'auto',
-            videoQuality: '1080',
-          }),
-        });
-        if (cRes.ok) {
-          const data = await cRes.json();
-          if ((data.status === 'tunnel' || data.status === 'redirect') && data.url) {
-            const ext = mode === 'audio' ? 'mp3' : 'mp4';
-            const fname = data.filename || `${platform.toLowerCase()}_${Date.now()}.${ext}`;
-            return res.json({
-              success: true,
-              platform,
-              title: data.filename || `${platform} Media Ready`,
-              thumbnail: '',
-              items: [
-                {
-                  label: mode === 'audio' ? 'Download Audio (MP3)' : 'Download Video (HD MP4)',
-                  filename: fname,
-                  proxyUrl: `/api/proxy-download?url=${encodeURIComponent(data.url)}&filename=${encodeURIComponent(fname)}`,
-                  directUrl: data.url,
-                },
-              ],
-            });
-          }
-        }
-      } catch (e) {}
-    }
-
-    // 4. OpenGraph / Direct HTML <video> Tag Scraper Fallback
+    // 5. OpenGraph / Direct HTML <video> Tag Scraper Fallback
     try {
-      const pageRes = await fetch(rawUrl, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-          Accept: 'text/html,application/xhtml+xml',
+      const pageRes = await fetchWithTimeout(
+        rawUrl,
+        {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            Accept: 'text/html,application/xhtml+xml',
+          },
         },
-      });
+        9000
+      );
       const html = await pageRes.text();
       const getMeta = (prop) => {
         const m =
@@ -497,14 +791,8 @@ app.post('/api/universal-download', async (req, res) => {
       }
     } catch (metaErr) {}
 
-   if (/sign in to confirm|not a bot|cookies/i.test(ytDlpReason)) {
-      return res.status(422).json({
-        error: 'YouTube blocked server IP. Add YT_COOKIES in Render Environment Variables to enable YouTube downloads.',
-      });
-    }
-
     return res.status(422).json({
-      error: 'Could not extract video. Ensure the link is Public (not private/login-only) and try again.',
+      error: 'Could not extract media from this link. Make sure the post/video is Public and try again.',
     });
   } catch (err) {
     return res.status(500).json({ error: 'Server error while processing link. Please try again.' });

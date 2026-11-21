@@ -573,229 +573,83 @@ async function extractSocialFast(rawUrl, host, mode) {
 
 app.post('/api/universal-download', async (req, res) => {
   try {
-    let rawUrl = String((req.body && req.body.url) || '').trim();
-    const mode = String((req.body && req.body.mode) || 'video').toLowerCase();
-
-    if (!rawUrl) {
-      return res.status(400).json({ error: 'Please paste a valid video, reel, audio, or file link.' });
-    }
-    if (!/^https?:\/\//i.test(rawUrl)) {
-      rawUrl = 'https://' + rawUrl;
+    const { url, mode } = req.body || {};
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'Please provide a valid URL.' });
     }
 
-    let parsed;
-    try {
-      parsed = new URL(rawUrl);
-    } catch (e) {
-      return res.status(400).json({ error: 'Invalid URL format. Please check the link.' });
-    }
+    const cleanUrl = /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`;
 
-    if (isBlockedHost(parsed.hostname)) {
-      return res.status(403).json({ error: 'Restricted URL.' });
-    }
-
-    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
-    const pathname = parsed.pathname.toLowerCase();
-
-    // 1. Direct Media / Document File URLs (.mp4, .mp3, .jpg, .pdf, .zip, Cloudinary)
-    const directExtMatch = pathname.match(/\.(mp4|webm|mov|mkv|mp3|wav|m4a|ogg|jpg|jpeg|png|webp|gif|pdf|zip)$/i);
-    if (directExtMatch || (host.includes('cloudinary.com') && pathname.includes('/upload/'))) {
-      const ext = directExtMatch ? directExtMatch[1].toLowerCase() : 'mp4';
-      const rawName = decodeURIComponent(parsed.pathname.split('/').pop() || `download.${ext}`);
-      const safeName = rawName.includes('.') ? rawName : `${rawName}.${ext}`;
+    // 1. Direct file links (.mp4, .mp3, .pdf, .jpg, .zip)
+    if (/\.(mp4|webm|mov|mp3|m4a|wav|pdf|jpg|jpeg|png|webp|zip)(\?.*)?$/i.test(cleanUrl)) {
+      const extMatch = cleanUrl.match(/\.([a-z0-9]+)(?:\?.*)?$/i);
+      const ext = extMatch ? extMatch[1].toLowerCase() : 'file';
       return res.json({
-        success: true,
         platform: 'Direct File',
-        title: safeName,
-        thumbnail: /\.(jpg|jpeg|png|webp|gif)$/i.test(safeName) ? rawUrl : '',
-        items: [
-          {
-            label: `Download ${ext.toUpperCase()} File`,
-            filename: safeName,
-            proxyUrl: `/api/proxy-download?url=${encodeURIComponent(rawUrl)}&filename=${encodeURIComponent(safeName)}`,
-            directUrl: rawUrl,
-          },
-        ],
+        title: `Direct ${ext.toUpperCase()} File`,
+        items: [{
+          label: `Download ${ext.toUpperCase()} File`,
+          filename: `download_${Date.now()}.${ext}`,
+          directUrl: cleanUrl,
+          useDirectOnly: true
+        }]
       });
     }
 
-    let platform = 'Web Media';
-    if (host.includes('youtube.com') || host.includes('youtu.be')) platform = 'YouTube';
-    else if (host.includes('instagram.com')) platform = 'Instagram';
-    else if (host.includes('facebook.com') || host.includes('fb.watch')) platform = 'Facebook';
-    else if (host.includes('twitter.com') || host.includes('x.com')) platform = 'X (Twitter)';
-    else if (host.includes('tiktok.com')) platform = 'TikTok';
-    else if (host.includes('pinterest.')) platform = 'Pinterest';
-    else if (host.includes('reddit.com')) platform = 'Reddit';
-    else if (host.includes('vimeo.com')) platform = 'Vimeo';
-
-    // 2. Fast Unblocked YouTube Mirrors (Works on Render without Cookies)
-    if (platform === 'YouTube') {
-      const ytId = extractYouTubeId(rawUrl);
-      if (ytId) {
-        const ytResult = await extractYouTubeUnblocked(ytId, mode);
-        if (ytResult) return res.json(ytResult);
-      }
+    // 2. RapidAPI Universal Extractor (YouTube, Instagram, Facebook, X, Pinterest)
+    const rapidKey = process.env.RAPIDAPI_KEY;
+    if (!rapidKey) {
+      return res.status(500).json({
+        error: 'RAPIDAPI_KEY missing in Render Environment Variables.'
+      });
     }
 
-    // 3. Fast Social Media APIs (Instagram, Facebook, X, TikTok)
-    const socialResult = await extractSocialFast(rawUrl, host, mode);
-    if (socialResult) return res.json(socialResult);
+    const apiRes = await fetch('https://social-download-all-in-one.p.rapidapi.com/v1/social/autolink', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-rapidapi-key': rapidKey,
+        'x-rapidapi-host': 'social-download-all-in-one.p.rapidapi.com'
+      },
+      body: JSON.stringify({ url: cleanUrl })
+    });
 
-    // 4. Universal yt-dlp Engine (1000+ Sites & Backup)
-    const binPath = await ensureYtDlpBinary();
-    if (binPath) {
-      try {
-        const info = await runYtDlpExtract(binPath, rawUrl);
-        const title = (info.title || `${platform} Media`).slice(0, 120);
-        const safeBase = title.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').slice(0, 50) || 'video';
-        const thumbnail = info.thumbnail || '';
-        const formats = Array.isArray(info.formats) ? info.formats : [];
-        const items = [];
+    const data = await apiRes.json();
+    const medias = Array.isArray(data.medias) ? data.medias : [];
 
-        if (mode === 'audio') {
-          const audioFormats = formats
-            .filter((f) => f.url && /^https?:/.test(f.url) && f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))
-            .sort((a, b) => (b.abr || b.tbr || 0) - (a.abr || a.tbr || 0));
+    const filtered = medias.filter((m) => {
+      if (!m || !m.url) return false;
+      const isAudio = m.type === 'audio' || /mp3|m4a|audio/i.test(m.extension || m.quality || '');
+      return mode === 'audio' ? isAudio : !isAudio;
+    });
 
-          const bestAudio = audioFormats[0] || formats.find((f) => f.url && f.acodec && f.acodec !== 'none');
-          if (bestAudio && bestAudio.url) {
-            const ext = bestAudio.ext === 'webm' ? 'webm' : 'm4a';
-            const fname = `${safeBase}_audio.${ext}`;
-            items.push({
-              label: `Download Audio (${Math.round(bestAudio.abr || 128)}kbps ${ext.toUpperCase()})`,
-              filename: fname,
-              proxyUrl: `/api/proxy-download?url=${encodeURIComponent(bestAudio.url)}&filename=${encodeURIComponent(fname)}`,
-              directUrl: bestAudio.url,
-            });
-          }
-        } else {
-          const progressive = formats
-            .filter(
-              (f) =>
-                f.url &&
-                /^https?:/.test(f.url) &&
-                f.vcodec &&
-                f.vcodec !== 'none' &&
-                f.acodec &&
-                f.acodec !== 'none'
-            )
-            .sort((a, b) => (b.height || 0) - (a.height || 0));
+    const chosen = filtered.length > 0 ? filtered : medias.filter((m) => m && m.url);
 
-          const seenHeights = new Set();
-          for (const f of progressive) {
-            const h = f.height || 'HD';
-            if (seenHeights.has(h)) continue;
-            seenHeights.add(h);
-            const ext = f.ext || 'mp4';
-            const fname = `${safeBase}_${h}p.${ext}`;
-            items.push({
-              label: `Download Video (${h}p ${ext.toUpperCase()})`,
-              filename: fname,
-              proxyUrl: `/api/proxy-download?url=${encodeURIComponent(f.url)}&filename=${encodeURIComponent(fname)}`,
-              directUrl: f.url,
-            });
-            if (items.length >= 2) break;
-          }
-
-          if (items.length === 0) {
-            const fallbackFormat =
-              formats.filter((f) => f.url && /^https?:/.test(f.url) && f.vcodec !== 'none').pop() ||
-              (info.url && /^https?:/.test(info.url) ? { url: info.url, ext: info.ext || 'mp4' } : null);
-
-            if (fallbackFormat && fallbackFormat.url) {
-              const ext = fallbackFormat.ext || 'mp4';
-              const fname = `${safeBase}.${ext}`;
-              items.push({
-                label: `Download Video (HD ${ext.toUpperCase()})`,
-                filename: fname,
-                proxyUrl: `/api/proxy-download?url=${encodeURIComponent(fallbackFormat.url)}&filename=${encodeURIComponent(fname)}`,
-                directUrl: fallbackFormat.url,
-              });
-            }
-          }
-        }
-
-        if (items.length > 0) {
-          return res.json({
-            success: true,
-            platform: info.extractor_key || platform,
-            title,
-            thumbnail,
-            items,
-          });
-        }
-      } catch (ytErr) {
-        console.warn('yt-dlp fallback triggered:', (ytErr.message || '').slice(0, 180));
-      }
+    if (chosen.length === 0) {
+      return res.status(400).json({
+        error: 'Could not extract media from this link. Make sure the post/video is public.'
+      });
     }
 
-    // 5. OpenGraph / Direct HTML <video> Tag Scraper Fallback
-    try {
-      const pageRes = await fetchWithTimeout(
-        rawUrl,
-        {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-            Accept: 'text/html,application/xhtml+xml',
-          },
-        },
-        9000
-      );
-      const html = await pageRes.text();
-      const getMeta = (prop) => {
-        const m =
-          html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`, 'i')) ||
-          html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${prop}["']`, 'i'));
-        return m ? m[1].replace(/&amp;/g, '&') : '';
+    const items = chosen.slice(0, 3).map((m, idx) => {
+      const ext = m.extension || (mode === 'audio' ? 'mp3' : 'mp4');
+      const q = m.quality ? ` (${m.quality})` : '';
+      return {
+        label: `Download ${mode === 'audio' ? 'Audio' : 'Video'}${q} ${ext.toUpperCase()}`,
+        filename: `media_${Date.now()}_${idx + 1}.${ext}`,
+        directUrl: m.url,
+        useDirectOnly: true
       };
+    });
 
-      const ogTitle = getMeta('og:title') || getMeta('twitter:title') || `${platform} Media`;
-      const rawVideoMatch = html.match(/https?:\/\/[^"'\\\s]+\.mp4[^"'\\\s]*/i);
-      const ogVideo =
-        getMeta('og:video:secure_url') ||
-        getMeta('og:video') ||
-        getMeta('twitter:player:stream') ||
-        (rawVideoMatch ? rawVideoMatch[0].replace(/\\u0026/g, '&') : '');
-      const ogImage = getMeta('og:image') || getMeta('twitter:image');
-
-      const items = [];
-      if (ogVideo && /^https?:\/\//i.test(ogVideo)) {
-        const vName = `${platform.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}.mp4`;
-        items.push({
-          label: 'Download Video (MP4)',
-          filename: vName,
-          proxyUrl: `/api/proxy-download?url=${encodeURIComponent(ogVideo)}&filename=${encodeURIComponent(vName)}`,
-          directUrl: ogVideo,
-        });
-      }
-      if (ogImage && /^https?:\/\//i.test(ogImage)) {
-        const iName = `${platform.toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now()}.jpg`;
-        items.push({
-          label: ogVideo ? 'Download Thumbnail (JPG)' : 'Download Image (JPG)',
-          filename: iName,
-          proxyUrl: `/api/proxy-download?url=${encodeURIComponent(ogImage)}&filename=${encodeURIComponent(iName)}`,
-          directUrl: ogImage,
-        });
-      }
-
-      if (items.length > 0) {
-        return res.json({
-          success: true,
-          platform,
-          title: ogTitle,
-          thumbnail: ogImage,
-          items,
-        });
-      }
-    } catch (metaErr) {}
-
-    return res.status(422).json({
-      error: 'Could not extract media from this link. Make sure the post/video is Public and try again.',
+    return res.json({
+      platform: data.source || 'Social Media',
+      title: (data.title || 'Media Ready to Download').slice(0, 120),
+      thumbnail: data.thumbnail || '',
+      items
     });
   } catch (err) {
-    return res.status(500).json({ error: 'Server error while processing link. Please try again.' });
+    return res.status(500).json({ error: 'Server extraction error. Please try again.' });
   }
 });
 

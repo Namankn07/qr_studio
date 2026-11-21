@@ -1268,6 +1268,10 @@
             class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700 transition">
             ✂️ Exam Photo &amp; Sign Cropper
           </button>
+          <button type="button" data-ufc-sub="edit" onclick="switchUfcSubTab('edit')"
+            class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700 transition">
+            ✏️ Edit / Add to Any File
+          </button>
         </div>
 
         <!-- PANEL 2: UNIVERSAL FILE COMPRESSOR -->
@@ -1422,6 +1426,122 @@
                 Download Exam-Ready JPG
               </a>
             </div>
+            <!-- PANEL 4: UNIVERSAL FILE EDITOR & ANNOTATOR (ADD CONTENT TO ANY FILE) -->
+        <div id="ufc-panel-edit" class="hidden text-left space-y-4">
+          <div onclick="document.getElementById('edit-any-input').click()"
+            class="border-2 border-dashed border-amber-500/40 hover:border-amber-400 rounded-2xl p-6 text-center cursor-pointer bg-slate-900/60 transition">
+            <input id="edit-any-input" type="file" class="hidden" onchange="loadFileForEditing(this.files[0])" />
+            <div class="text-2xl mb-1">✏️</div>
+            <p class="text-sm sm:text-base font-semibold text-white">Select ANY File to Edit or Add Content (PDF, Image, DOCX, XLSX, CSV, TXT, Code, ZIP, etc.)</p>
+            <p class="text-xs text-slate-400 mt-1">Add text, signature, photo stamp, table rows, or notes directly into your file and save in its original format</p>
+          </div>
+
+          <div id="edit-file-header" class="hidden px-4 py-3 rounded-xl bg-slate-800/90 border border-slate-700 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
+            <span id="edit-file-badge" class="font-semibold text-white"></span>
+            <button type="button" onclick="saveAndDownloadEditedFile()"
+              class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow">
+              💾 Save &amp; Download File
+            </button>
+          </div>
+
+          <!-- A. VISUAL CANVAS EDITOR (FOR PDF & IMAGES) -->
+          <div id="edit-visual-box" class="hidden space-y-3 bg-slate-950/90 p-4 rounded-2xl border border-slate-800">
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" data-ed-tool="text" onclick="setVisualEditorTool('text')"
+                class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-semibold text-xs">🅰️ Add Text</button>
+              <button type="button" data-ed-tool="draw" onclick="setVisualEditorTool('draw')"
+                class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 font-semibold text-xs">✍️ Draw / Sign</button>
+              <button type="button" data-ed-tool="stamp" onclick="setVisualEditorTool('stamp')"
+                class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 font-semibold text-xs">🖼️ Stamp Image</button>
+
+              <input id="edit-color-picker" type="color" value="#1d4ed8" title="Pick Color"
+                class="w-8 h-8 rounded cursor-pointer bg-transparent border border-slate-700" />
+
+              <select id="edit-size-select" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs">
+                <option value="14">Small (14px)</option>
+                <option value="20" selected>Medium (20px)</option>
+                <option value="28">Large (28px)</option>
+                <option value="40">XL (40px)</option>
+              </select>
+
+              <button type="button" onclick="undoVisualEditorAction()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200">↩ Undo</button>
+              <button type="button" onclick="clearVisualEditorPage()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/60 text-xs text-slate-200">🗑️ Clear Page</button>
+            </div>
+
+            <div id="edit-text-bar" class="flex flex-wrap items-center gap-2">
+              <input id="edit-text-input" type="text" placeholder="Type text here, then tap/click anywhere on the file to place it..."
+                class="flex-1 min-w-[200px] px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs sm:text-sm outline-none focus:border-amber-400" />
+            </div>
+
+            <div id="edit-stamp-bar" class="hidden flex flex-wrap items-center gap-2">
+              <button type="button" onclick="document.getElementById('edit-stamp-file').click()"
+                class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold">
+                Choose Photo / Signature Stamp
+              </button>
+              <input id="edit-stamp-file" type="file" accept="image/*" class="hidden" onchange="loadVisualStampImage(this.files[0])" />
+              <span id="edit-stamp-status" class="text-xs text-slate-400">Select an image, then click on the file to paste it</span>
+            </div>
+
+            <div id="edit-pdf-pager" class="hidden flex items-center justify-center gap-3 text-xs text-slate-200">
+              <button type="button" onclick="changeEditorPdfPage(-1)" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700">◀ Prev Page</button>
+              <span id="edit-pdf-page-label" class="font-semibold">Page 1 of 1</span>
+              <button type="button" onclick="changeEditorPdfPage(1)" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700">Next Page ▶</button>
+            </div>
+
+            <div class="flex justify-center overflow-auto bg-slate-900/90 p-2 rounded-xl border border-slate-800">
+              <canvas id="edit-visual-canvas" class="max-w-full rounded shadow-lg cursor-crosshair bg-white" style="touch-action:none;"></canvas>
+            </div>
+          </div>
+
+          <!-- B. SPREADSHEET GRID EDITOR (FOR XLSX, XLS, CSV) -->
+          <div id="edit-sheet-box" class="hidden space-y-3 bg-slate-950/90 p-4 rounded-2xl border border-slate-800">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <label class="text-xs text-slate-300 font-semibold">Sheet:</label>
+                <select id="edit-sheet-select" onchange="switchEditorSheet(this.value)"
+                  class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs"></select>
+              </div>
+              <div class="flex gap-2">
+                <button type="button" onclick="addEditorSheetRow()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">+ Add Row</button>
+                <button type="button" onclick="addEditorSheetCol()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold">+ Add Column</button>
+              </div>
+            </div>
+            <div id="edit-sheet-grid" class="overflow-auto max-h-96 rounded-xl border border-slate-800"></div>
+          </div>
+
+          <!-- C. TEXT / DOCX / CODE EDITOR -->
+          <div id="edit-textdoc-box" class="hidden space-y-2.5 bg-slate-950/90 p-4 rounded-2xl border border-slate-800">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span id="edit-textdoc-hint" class="text-xs text-slate-400">Edit anywhere or add new text below:</span>
+              <button type="button" onclick="appendTimestampNote()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200">+ Append Note Line</button>
+            </div>
+            <textarea id="edit-textdoc-area" rows="12"
+              class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 font-mono text-xs sm:text-sm outline-none focus:border-amber-400"></textarea>
+          </div>
+
+          <!-- D. ZIP / UNIVERSAL BINARY CONTAINER EDITOR -->
+          <div id="edit-zip-box" class="hidden space-y-3 bg-slate-950/90 p-4 rounded-2xl border border-slate-800">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-xs font-semibold text-slate-300">Files inside package:</span>
+              <div class="flex gap-2">
+                <button type="button" onclick="document.getElementById('edit-zip-add-files').click()"
+                  class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold">+ Add Files</button>
+                <input id="edit-zip-add-files" type="file" multiple class="hidden" onchange="addFilesToEditorArchive(this.files)" />
+              </div>
+            </div>
+            <ul id="edit-zip-list" class="text-xs text-slate-300 space-y-1 max-h-40 overflow-auto bg-slate-900 p-3 rounded-xl border border-slate-800"></ul>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-semibold text-slate-300">Add a New Text Note File Inside Archive (Optional):</label>
+              <textarea id="edit-zip-note" rows="3" placeholder="Write any note or details here to include as note.txt inside the saved file..."
+                class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs outline-none"></textarea>
+            </div>
+          </div>
+
+          <button id="edit-bottom-save-btn" type="button" onclick="saveAndDownloadEditedFile()"
+            class="hidden w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-lg transition">
+            💾 Save Changes &amp; Download File
+          </button>
+        </div>
           </div>
         </div>
             </div>
@@ -3622,7 +3742,7 @@ function ufcOpenTab() {
       // =========================================================================
     // SUB-TAB SWITCHER + UNIVERSAL FILE COMPRESSOR + EXAM IMAGE CROPPER
     // =========================================================================
-    function switchUfcSubTab(sub) {
+ function switchUfcSubTab(sub) {
       document.querySelectorAll('#ufc-subtabs button').forEach((btn) => {
         const active = btn.getAttribute('data-ufc-sub') === sub;
         btn.className = active
@@ -3632,10 +3752,12 @@ function ufcOpenTab() {
 
       const compPanel = document.getElementById('ufc-panel-compress');
       const cropPanel = document.getElementById('ufc-panel-crop');
+      const editPanel = document.getElementById('ufc-panel-edit');
       compPanel.classList.toggle('hidden', sub !== 'compress');
       cropPanel.classList.toggle('hidden', sub !== 'crop');
+      editPanel.classList.toggle('hidden', sub !== 'edit');
 
-      let sibling = cropPanel.nextElementSibling;
+      let sibling = editPanel.nextElementSibling;
       while (sibling) {
         sibling.classList.toggle('hidden', sub !== 'convert');
         sibling = sibling.nextElementSibling;
@@ -4073,6 +4195,471 @@ function ufcOpenTab() {
         }
       });
     })();
+    // =========================================================================
+    // 3. UNIVERSAL FILE EDITOR & ANNOTATOR (ADD CONTENT TO ANY FILE FORMAT)
+    // =========================================================================
+    const fileEditorState = {
+      kind: null, // 'image' | 'pdf' | 'sheet' | 'docx' | 'text' | 'zip'
+      file: null,
+      filename: '',
+      mime: '',
+      // Visual (Image / PDF)
+      baseImg: null,
+      pdfDoc: null,
+      pdfPage: 1,
+      pdfTotal: 1,
+      pageCache: {},
+      annotations: {}, // { pageNum: [ {type:'text'|'draw'|'stamp', ...} ] }
+      tool: 'text',
+      stampImg: null,
+      isDrawing: false,
+      activeStroke: null,
+      // Sheet
+      workbook: null,
+      sheetName: '',
+      rows: [],
+      // Archive / Universal
+      archiveEntries: [], // [{ name, data }]
+    };
+
+    function hideAllEditorBoxes() {
+      ['edit-visual-box', 'edit-sheet-box', 'edit-textdoc-box', 'edit-zip-box'].forEach((id) => {
+        document.getElementById(id).classList.add('hidden');
+      });
+    }
+
+    async function loadFileForEditing(file) {
+      if (!file) return;
+      fileEditorState.file = file;
+      fileEditorState.filename = file.name;
+      fileEditorState.mime = file.type || 'application/octet-stream';
+      fileEditorState.annotations = {};
+      fileEditorState.pageCache = {};
+
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      hideAllEditorBoxes();
+      document.getElementById('edit-file-header').classList.remove('hidden');
+      document.getElementById('edit-bottom-save-btn').classList.remove('hidden');
+      document.getElementById('edit-file-badge').textContent = `📄 Editing: ${file.name} (${formatBytes(file.size)})`;
+
+      const textExts = ['txt', 'json', 'html', 'htm', 'css', 'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'md', 'xml', 'sql', 'yaml', 'yml', 'env', 'log', 'ini', 'sh'];
+
+      try {
+        if (file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'].includes(ext)) {
+          fileEditorState.kind = 'image';
+          const img = await new Promise((resolve, reject) => {
+            const i = new Image();
+            i.onload = () => resolve(i);
+            i.onerror = reject;
+            i.src = URL.createObjectURL(file);
+          });
+          fileEditorState.baseImg = img;
+          fileEditorState.pdfDoc = null;
+          fileEditorState.pdfPage = 1;
+          document.getElementById('edit-pdf-pager').classList.add('hidden');
+          document.getElementById('edit-visual-box').classList.remove('hidden');
+          renderVisualEditorCanvas();
+        } else if (file.type === 'application/pdf' || ext === 'pdf') {
+          if (!window.pdfjsLib) throw new Error('PDF engine loading, retry in 2 seconds.');
+          fileEditorState.kind = 'pdf';
+          const buf = await file.arrayBuffer();
+          fileEditorState.pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+          fileEditorState.pdfPage = 1;
+          fileEditorState.pdfTotal = fileEditorState.pdfDoc.numPages;
+          document.getElementById('edit-pdf-pager').classList.remove('hidden');
+          document.getElementById('edit-visual-box').classList.remove('hidden');
+          await renderVisualEditorCanvas();
+        } else if (['xlsx', 'xls', 'csv', 'ods'].includes(ext)) {
+          if (!window.XLSX) throw new Error('Spreadsheet engine loading, retry in 2 seconds.');
+          fileEditorState.kind = 'sheet';
+          const buf = await file.arrayBuffer();
+          const wb = XLSX.read(buf, { type: 'array' });
+          fileEditorState.workbook = wb;
+          const sel = document.getElementById('edit-sheet-select');
+          sel.innerHTML = wb.SheetNames.map((n) => `<option value="${n}">${n}</option>`).join('');
+          document.getElementById('edit-sheet-box').classList.remove('hidden');
+          switchEditorSheet(wb.SheetNames[0]);
+        } else if (ext === 'docx') {
+          fileEditorState.kind = 'docx';
+          let initialText = '';
+          if (window.mammoth) {
+            const buf = await file.arrayBuffer();
+            const res = await mammoth.extractRawText({ arrayBuffer: buf });
+            initialText = res.value || '';
+          }
+          document.getElementById('edit-textdoc-hint').textContent = 'Edit document paragraphs or add new lines below (saves as .docx):';
+          document.getElementById('edit-textdoc-area').value = initialText;
+          document.getElementById('edit-textdoc-box').classList.remove('hidden');
+        } else if (file.type.startsWith('text/') || textExts.includes(ext)) {
+          fileEditorState.kind = 'text';
+          const txt = await file.text();
+          document.getElementById('edit-textdoc-hint').textContent = `Editing ${file.name} directly (saves in exact same .${ext || 'txt'} format):`;
+          document.getElementById('edit-textdoc-area').value = txt;
+          document.getElementById('edit-textdoc-box').classList.remove('hidden');
+        } else if (ext === 'zip') {
+          fileEditorState.kind = 'zip';
+          const zip = await JSZip.loadAsync(await file.arrayBuffer());
+          fileEditorState.archiveEntries = [];
+          for (const [name, entry] of Object.entries(zip.files)) {
+            if (!entry.dir) {
+              fileEditorState.archiveEntries.push({ name, data: await entry.async('uint8array') });
+            }
+          }
+          renderEditorArchiveList();
+          document.getElementById('edit-zip-box').classList.remove('hidden');
+        } else {
+          // Universal fallback for any binary/custom file format: bundle original + new files/notes
+          fileEditorState.kind = 'zip';
+          fileEditorState.archiveEntries = [{ name: file.name, data: new Uint8Array(await file.arrayBuffer()) }];
+          renderEditorArchiveList();
+          document.getElementById('edit-zip-box').classList.remove('hidden');
+        }
+      } catch (err) {
+        showToast(err.message || 'Could not open file for editing.', 'error');
+      }
+    }
+
+    // --- Visual Editor (PDF & Images) ---
+    function setVisualEditorTool(tool) {
+      fileEditorState.tool = tool;
+      document.querySelectorAll('[data-ed-tool]').forEach((b) => {
+        const active = b.getAttribute('data-ed-tool') === tool;
+        b.className = active
+          ? 'px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-semibold text-xs'
+          : 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 font-semibold text-xs';
+      });
+      document.getElementById('edit-text-bar').classList.toggle('hidden', tool !== 'text');
+      document.getElementById('edit-stamp-bar').classList.toggle('hidden', tool !== 'stamp');
+    }
+
+    function loadVisualStampImage(file) {
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => {
+        fileEditorState.stampImg = img;
+        document.getElementById('edit-stamp-status').textContent = `✅ Stamp loaded (${file.name}) — tap/click anywhere on the file to place it`;
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    async function getPdfPageBitmap(pageNum, scale) {
+      const key = `${pageNum}_${scale}`;
+      if (fileEditorState.pageCache[key]) return fileEditorState.pageCache[key];
+      const page = await fileEditorState.pdfDoc.getPage(pageNum);
+      const vp = page.getViewport({ scale });
+      const c = document.createElement('canvas');
+      c.width = vp.width;
+      c.height = vp.height;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      fileEditorState.pageCache[key] = c;
+      return c;
+    }
+
+    function drawAnnotationsOnContext(ctx, w, h, items) {
+      (items || []).forEach((item) => {
+        if (item.type === 'text') {
+          const px = Math.max(10, Math.round(item.size * (w / 600)));
+          ctx.font = `bold ${px}px sans-serif`;
+          ctx.fillStyle = item.color;
+          ctx.textBaseline = 'middle';
+          ctx.fillText(item.text, item.x * w, item.y * h);
+        } else if (item.type === 'draw' && item.points.length > 1) {
+          ctx.strokeStyle = item.color;
+          ctx.lineWidth = Math.max(2, (item.size / 6) * (w / 600));
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          ctx.moveTo(item.points[0].x * w, item.points[0].y * h);
+          for (let i = 1; i < item.points.length; i++) {
+            ctx.lineTo(item.points[i].x * w, item.points[i].y * h);
+          }
+          ctx.stroke();
+        } else if (item.type === 'stamp' && item.img) {
+          const sw = item.w * w;
+          const sh = sw * (item.img.height / item.img.width);
+          ctx.drawImage(item.img, item.x * w - sw / 2, item.y * h - sh / 2, sw, sh);
+        }
+      });
+    }
+
+    async function renderVisualEditorCanvas() {
+      const canvas = document.getElementById('edit-visual-canvas');
+      const ctx = canvas.getContext('2d');
+      const pageNum = fileEditorState.pdfPage || 1;
+
+      if (fileEditorState.kind === 'image' && fileEditorState.baseImg) {
+        const img = fileEditorState.baseImg;
+        const maxW = Math.min(680, window.innerWidth - 64);
+        const scale = Math.min(1, maxW / img.width);
+        canvas.width = Math.max(160, Math.round(img.width * scale));
+        canvas.height = Math.max(160, Math.round(img.height * scale));
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      } else if (fileEditorState.kind === 'pdf' && fileEditorState.pdfDoc) {
+        document.getElementById('edit-pdf-page-label').textContent = `Page ${pageNum} of ${fileEditorState.pdfTotal}`;
+        const bmp = await getPdfPageBitmap(pageNum, 1.3);
+        const maxW = Math.min(680, window.innerWidth - 64);
+        const scale = Math.min(1, maxW / bmp.width);
+        canvas.width = Math.round(bmp.width * scale);
+        canvas.height = Math.round(bmp.height * scale);
+        ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+      }
+
+      drawAnnotationsOnContext(ctx, canvas.width, canvas.height, fileEditorState.annotations[pageNum]);
+    }
+
+    async function changeEditorPdfPage(delta) {
+      const next = fileEditorState.pdfPage + delta;
+      if (next < 1 || next > fileEditorState.pdfTotal) return;
+      fileEditorState.pdfPage = next;
+      await renderVisualEditorCanvas();
+    }
+
+    function undoVisualEditorAction() {
+      const pageNum = fileEditorState.pdfPage || 1;
+      const list = fileEditorState.annotations[pageNum];
+      if (list && list.length) {
+        list.pop();
+        renderVisualEditorCanvas();
+      }
+    }
+
+    function clearVisualEditorPage() {
+      const pageNum = fileEditorState.pdfPage || 1;
+      fileEditorState.annotations[pageNum] = [];
+      renderVisualEditorCanvas();
+    }
+
+    (function setupVisualEditorPointer() {
+      const canvas = document.getElementById('edit-visual-canvas');
+      if (!canvas) return;
+
+      function getNormPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
+          y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)),
+        };
+      }
+
+      canvas.addEventListener('pointerdown', (e) => {
+        if (!fileEditorState.kind) return;
+        e.preventDefault();
+        const pos = getNormPos(e);
+        const pageNum = fileEditorState.pdfPage || 1;
+        if (!fileEditorState.annotations[pageNum]) fileEditorState.annotations[pageNum] = [];
+        const color = document.getElementById('edit-color-picker').value;
+        const size = parseInt(document.getElementById('edit-size-select').value || '20', 10);
+
+        if (fileEditorState.tool === 'text') {
+          const text = document.getElementById('edit-text-input').value.trim();
+          if (!text) {
+            showToast('Please type some text in the box above first!', 'error');
+            document.getElementById('edit-text-input').focus();
+            return;
+          }
+          fileEditorState.annotations[pageNum].push({ type: 'text', x: pos.x, y: pos.y, text, color, size });
+          renderVisualEditorCanvas();
+        } else if (fileEditorState.tool === 'stamp') {
+          if (!fileEditorState.stampImg) {
+            showToast('Please select a photo/signature stamp first!', 'error');
+            return;
+          }
+          const stampW = Math.min(0.6, Math.max(0.12, size / 80));
+          fileEditorState.annotations[pageNum].push({ type: 'stamp', x: pos.x, y: pos.y, w: stampW, img: fileEditorState.stampImg });
+          renderVisualEditorCanvas();
+        } else if (fileEditorState.tool === 'draw') {
+          fileEditorState.isDrawing = true;
+          fileEditorState.activeStroke = { type: 'draw', points: [pos], color, size };
+          fileEditorState.annotations[pageNum].push(fileEditorState.activeStroke);
+          canvas.setPointerCapture(e.pointerId);
+        }
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        if (!fileEditorState.isDrawing || !fileEditorState.activeStroke) return;
+        fileEditorState.activeStroke.points.push(getNormPos(e));
+        renderVisualEditorCanvas();
+      });
+
+      window.addEventListener('pointerup', () => {
+        fileEditorState.isDrawing = false;
+        fileEditorState.activeStroke = null;
+      });
+    })();
+
+    // --- Spreadsheet Editor (XLSX / CSV) ---
+    function switchEditorSheet(name) {
+      fileEditorState.sheetName = name;
+      const ws = fileEditorState.workbook.Sheets[name];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      fileEditorState.rows = data.length ? data : [['Column 1', 'Column 2'], ['', '']];
+      renderEditorSheetGrid();
+    }
+
+    function renderEditorSheetGrid() {
+      const colCount = Math.max(1, ...fileEditorState.rows.map((r) => r.length));
+      fileEditorState.rows.forEach((r) => {
+        while (r.length < colCount) r.push('');
+      });
+
+      const html = `<table class="w-full text-xs text-left border-collapse">
+        <tbody>
+          ${fileEditorState.rows.map((row, ri) => `
+            <tr class="${ri === 0 ? 'bg-slate-800/90 font-semibold' : 'bg-slate-900/70'}">
+              ${row.map((val, ci) => `
+                <td class="border border-slate-800 p-1 min-w-[110px]">
+                  <input type="text" value="${String(val).replace(/"/g, '&quot;')}"
+                    oninput="fileEditorState.rows[${ri}][${ci}] = this.value"
+                    class="w-full bg-transparent text-slate-100 px-1.5 py-1 outline-none focus:bg-slate-800 rounded" />
+                </td>
+              `).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+      document.getElementById('edit-sheet-grid').innerHTML = html;
+    }
+
+    function addEditorSheetRow() {
+      const cols = fileEditorState.rows[0] ? fileEditorState.rows[0].length : 2;
+      fileEditorState.rows.push(new Array(cols).fill(''));
+      renderEditorSheetGrid();
+    }
+
+    function addEditorSheetCol() {
+      fileEditorState.rows.forEach((r, idx) => r.push(idx === 0 ? `Col ${r.length + 1}` : ''));
+      renderEditorSheetGrid();
+    }
+
+    // --- Text / DOCX Helpers ---
+    function appendTimestampNote() {
+      const area = document.getElementById('edit-textdoc-area');
+      const stamp = new Date().toLocaleString();
+      area.value = (area.value ? area.value + '\n\n' : '') + `[Added on ${stamp}]: `;
+      area.focus();
+    }
+
+    async function buildDocxBlobFromText(text) {
+      const zip = new JSZip();
+      const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const paras = text.split(/\r?\n/).map((line) =>
+        `<w:p><w:r><w:t xml:space="preserve">${esc(line)}</w:t></w:r></w:p>`
+      ).join('');
+
+      zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`);
+
+      zip.folder('_rels').file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+
+      zip.folder('word').file('document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>${paras}</w:body>
+</w:document>`);
+
+      return await zip.generateAsync({ type: 'blob' });
+    }
+
+    // --- ZIP / Archive Helpers ---
+    function renderEditorArchiveList() {
+      const ul = document.getElementById('edit-zip-list');
+      ul.innerHTML = fileEditorState.archiveEntries.map((item, idx) =>
+        `<li class="flex items-center justify-between py-1 border-b border-slate-800/70">
+          <span>📦 ${item.name} (${formatBytes(item.data.byteLength)})</span>
+          <button type="button" onclick="fileEditorState.archiveEntries.splice(${idx},1); renderEditorArchiveList();" class="text-rose-400 hover:underline">Remove</button>
+        </li>`
+      ).join('');
+    }
+
+    async function addFilesToEditorArchive(fileList) {
+      for (const f of Array.from(fileList || [])) {
+        fileEditorState.archiveEntries.push({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) });
+      }
+      renderEditorArchiveList();
+    }
+
+    // --- Save & Download Edited File in Its Original Format ---
+    async function saveAndDownloadEditedFile() {
+      if (!fileEditorState.file) return;
+      let blob, outName = `edited_${fileEditorState.filename}`;
+
+      try {
+        if (fileEditorState.kind === 'image') {
+          const img = fileEditorState.baseImg;
+          const outCanvas = document.createElement('canvas');
+          outCanvas.width = img.width;
+          outCanvas.height = img.height;
+          const ctx = outCanvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          drawAnnotationsOnContext(ctx, img.width, img.height, fileEditorState.annotations[1]);
+          const outType = ['image/png', 'image/webp'].includes(fileEditorState.mime) ? fileEditorState.mime : 'image/jpeg';
+          blob = await new Promise((r) => outCanvas.toBlob(r, outType, 0.94));
+        } else if (fileEditorState.kind === 'pdf') {
+          const { jsPDF } = window.jspdf;
+          let doc = null;
+          for (let p = 1; p <= fileEditorState.pdfTotal; p++) {
+            const pageCanvas = await getPdfPageBitmap(p, 1.8);
+            const copy = document.createElement('canvas');
+            copy.width = pageCanvas.width;
+            copy.height = pageCanvas.height;
+            const ctx = copy.getContext('2d');
+            ctx.drawImage(pageCanvas, 0, 0);
+            drawAnnotationsOnContext(ctx, copy.width, copy.height, fileEditorState.annotations[p]);
+
+            const dataUrl = copy.toDataURL('image/jpeg', 0.9);
+            const orient = copy.width > copy.height ? 'l' : 'p';
+            if (!doc) {
+              doc = new jsPDF({ orientation: orient, unit: 'px', format: [copy.width, copy.height], compress: true });
+            } else {
+              doc.addPage([copy.width, copy.height], orient);
+            }
+            doc.addImage(dataUrl, 'JPEG', 0, 0, copy.width, copy.height, undefined, 'FAST');
+          }
+          blob = doc.output('blob');
+        } else if (fileEditorState.kind === 'sheet') {
+          const newWs = XLSX.utils.aoa_to_sheet(fileEditorState.rows);
+          fileEditorState.workbook.Sheets[fileEditorState.sheetName] = newWs;
+          const isCsv = fileEditorState.filename.toLowerCase().endsWith('.csv');
+          if (isCsv) {
+            const csvText = XLSX.utils.sheet_to_csv(newWs);
+            blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
+          } else {
+            const outArr = XLSX.write(fileEditorState.workbook, { bookType: 'xlsx', type: 'array' });
+            blob = new Blob([outArr], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          }
+        } else if (fileEditorState.kind === 'docx') {
+          blob = await buildDocxBlobFromText(document.getElementById('edit-textdoc-area').value);
+        } else if (fileEditorState.kind === 'text') {
+          blob = new Blob([document.getElementById('edit-textdoc-area').value], { type: fileEditorState.mime || 'text/plain;charset=utf-8' });
+        } else if (fileEditorState.kind === 'zip') {
+          const zip = new JSZip();
+          fileEditorState.archiveEntries.forEach((e) => zip.file(e.name, e.data));
+          const note = document.getElementById('edit-zip-note').value.trim();
+          if (note) zip.file('added_note.txt', note);
+          blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+          if (!outName.toLowerCase().endsWith('.zip')) outName += '.zip';
+        }
+
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = outName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast(`Saved & downloaded: ${outName}`, 'success');
+      } catch (err) {
+        showToast(err.message || 'Failed to save edited file.', 'error');
+      }
+    }
       // Auto-hide UFC panel whenever user switches back to Generate or Scanner tabs
       ['panel-generate', 'panel-scanner'].forEach((id) => {
         const target = document.getElementById(id);

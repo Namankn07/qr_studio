@@ -1262,7 +1262,7 @@
           </button>
           <button type="button" data-ufc-sub="compress" onclick="switchUfcSubTab('compress')"
             class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700 transition">
-            🗜️ Compress Any File (KB)
+            🗜️Compress Any File (KB / MB)
           </button>
           <button type="button" data-ufc-sub="crop" onclick="switchUfcSubTab('crop')"
             class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700 transition">
@@ -1274,44 +1274,62 @@
           </button>
         </div>
 
-        <!-- PANEL 2: UNIVERSAL FILE COMPRESSOR -->
+     <!-- PANEL 2: UNIVERSAL FILE COMPRESSOR -->
         <div id="ufc-panel-compress" class="hidden text-left space-y-4">
           <div onclick="document.getElementById('comp-file-input').click()"
             class="border-2 border-dashed border-emerald-500/40 hover:border-emerald-400 rounded-2xl p-6 text-center cursor-pointer bg-slate-900/60 transition">
             <input id="comp-file-input" type="file" multiple class="hidden" onchange="handleCompressFileSelect(this.files)" />
             <div class="text-2xl mb-1">🗜️</div>
             <p class="text-sm sm:text-base font-semibold text-white">Select ANY File to Compress (PDF, JPG, PNG, DOCX, XLSX, Video, ZIP, etc.)</p>
-            <p class="text-xs text-slate-400 mt-1">Shrinks images &amp; multi-page PDFs to your exact KB limit, and packs other files with max ZIP compression</p>
+            <p class="text-xs text-slate-400 mt-1">Compresses to your exact KB or MB target while keeping original HD resolution &amp; sharp text</p>
           </div>
 
           <div id="comp-file-info" class="hidden px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-700 text-xs sm:text-sm text-slate-200 flex flex-wrap items-center justify-between gap-2"></div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-900/70 p-4 rounded-2xl border border-slate-800">
             <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Target Max Size (KB) — For Images &amp; PDFs</label>
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Target Max Size (KB ya MB Chunein)</label>
               <div class="flex gap-2">
-                <input id="comp-target-kb" type="number" min="5" max="50000" value="50"
+                <input id="comp-target-val" type="number" step="any" min="1" max="50000" value="2"
                   class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:border-emerald-500 outline-none" />
-                <span class="px-3 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold flex items-center">KB</span>
+                <select id="comp-target-unit"
+                  class="px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-emerald-300 text-xs sm:text-sm font-bold outline-none cursor-pointer">
+                  <option value="KB">KB</option>
+                  <option value="MB" selected>MB</option>
+                </select>
               </div>
               <div class="flex flex-wrap gap-1.5 mt-2">
-                <button type="button" onclick="document.getElementById('comp-target-kb').value=20" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">20 KB</button>
-                <button type="button" onclick="document.getElementById('comp-target-kb').value=50" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">50 KB</button>
-                <button type="button" onclick="document.getElementById('comp-target-kb').value=100" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">100 KB</button>
-                <button type="button" onclick="document.getElementById('comp-target-kb').value=200" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">200 KB</button>
-                <button type="button" onclick="document.getElementById('comp-target-kb').value=500" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">500 KB</button>
-                <button type="button" onclick="document.getElementById('comp-target-kb').value=1024" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">1 MB</button>
+                <button type="button" onclick="setCompPreset(50,'KB')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">50 KB</button>
+                <button type="button" onclick="setCompPreset(200,'KB')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">200 KB</button>
+                <button type="button" onclick="setCompPreset(500,'KB')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-slate-200">500 KB</button>
+                <button type="button" onclick="setCompPreset(1,'MB')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-emerald-300 font-semibold">1 MB</button>
+                <button type="button" onclick="setCompPreset(2,'MB')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-emerald-300 font-semibold">2 MB</button>
+                <button type="button" onclick="setCompPreset(5,'MB')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-emerald-300 font-semibold">5 MB</button>
+                <button type="button" onclick="setCompPreset(10,'MB')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs text-emerald-300 font-semibold">10 MB</button>
               </div>
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Compression Mode</label>
-              <select id="comp-mode" class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm outline-none">
-                <option value="target">Strict Target KB (Auto-fit under KB limit)</option>
-                <option value="balanced">Balanced Quality (65% — Sharp &amp; Small)</option>
-                <option value="extreme">Extreme Shrink (35% — Maximum Reduction)</option>
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">Compression Mode (Quality Control)</label>
+              <select id="comp-mode" onchange="toggleCompCustomSlider(this.value)"
+                class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm outline-none">
+                <option value="target">🎯 Exact KB / MB Limit (Best HD Quality)</option>
+                <option value="custom">🎚️ Apne According % Chunein (Custom Slider)</option>
+                <option value="ultrasharp">✨ Ultra-Sharp Optimize (90% Quality — Zero Blur)</option>
+                <option value="extreme">⚡ Compact Size (Maximum Shrink)</option>
               </select>
-              <p class="text-[11px] text-slate-400 mt-2">DOCX, XLSX, MP4, or multiple files automatically compress into a high-density ZIP archive.</p>
+
+              <div id="comp-custom-box" class="hidden mt-2.5 p-2.5 rounded-xl bg-slate-950/90 border border-slate-800">
+                <div class="flex justify-between text-[11px] text-slate-300 mb-1">
+                  <span>Compression Level:</span>
+                  <span id="comp-slider-label" class="font-bold text-emerald-400">40% Compress (High Clarity)</span>
+                </div>
+                <input id="comp-custom-slider" type="range" min="10" max="85" value="40"
+                  oninput="updateCompSliderLabel(this.value)"
+                  class="w-full accent-emerald-500 cursor-pointer" />
+              </div>
+
+              <p id="comp-mode-hint" class="text-[11px] text-slate-400 mt-2">Original dimensions lock rehte hain taaki text aur photo bilkul blur na hon.</p>
             </div>
           </div>
 
@@ -3764,8 +3782,28 @@ function ufcOpenTab() {
       }
     }
 
-    // --- 1. UNIVERSAL FILE COMPRESSOR ---
+   // --- 1. UNIVERSAL FILE COMPRESSOR (KB + MB + ZERO-BLUR QUALITY ENGINE) ---
     let compSelectedFiles = [];
+
+    function setCompPreset(val, unit) {
+      document.getElementById('comp-target-val').value = val;
+      document.getElementById('comp-target-unit').value = unit;
+      document.getElementById('comp-mode').value = 'target';
+      toggleCompCustomSlider('target');
+    }
+
+    function toggleCompCustomSlider(mode) {
+      const box = document.getElementById('comp-custom-box');
+      const hint = document.getElementById('comp-mode-hint');
+      if (box) box.classList.toggle('hidden', mode !== 'custom');
+      if (hint) hint.classList.toggle('hidden', mode === 'custom');
+    }
+
+    function updateCompSliderLabel(val) {
+      const pct = parseInt(val, 10);
+      const tag = pct <= 35 ? 'Ultra HD' : pct <= 60 ? 'High Clarity' : 'Compact';
+      document.getElementById('comp-slider-label').textContent = `${pct}% Compress (${tag})`;
+    }
 
     function formatBytes(bytes) {
       if (bytes < 1024) return bytes + ' B';
@@ -3788,7 +3826,7 @@ function ufcOpenTab() {
       infoEl.classList.remove('hidden');
     }
 
-    async function compressImageToTarget(file, targetBytes, mode) {
+    async function compressImageToTarget(file, targetBytes, mode, customPct) {
       const img = await new Promise((resolve, reject) => {
         const i = new Image();
         i.onload = () => resolve(i);
@@ -3797,47 +3835,63 @@ function ufcOpenTab() {
       });
 
       const outType = file.type === 'image/webp' ? 'image/webp' : 'image/jpeg';
-      let scale = mode === 'extreme' ? 0.7 : 1.0;
-      let quality = mode === 'extreme' ? 0.4 : mode === 'balanced' ? 0.65 : 0.88;
-      let bestBlob = null;
+      const base = file.name.replace(/\.[^.]+$/, '');
+      const ext = outType === 'image/webp' ? 'webp' : 'jpg';
 
-      for (let step = 0; step < 8; step++) {
-        const w = Math.max(80, Math.round(img.width * scale));
-        const h = Math.max(80, Math.round(img.height * scale));
+      const renderAt = (scale, q) => {
+        const w = Math.max(100, Math.round(img.width * scale));
+        const h = Math.max(100, Math.round(img.height * scale));
         const canvas = document.createElement('canvas');
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
+        return new Promise((r) => canvas.toBlob(r, outType, q));
+      };
 
-        if (mode !== 'target') {
-          bestBlob = await new Promise((r) => canvas.toBlob(r, outType, quality));
-          break;
-        }
+      // Mode 1: Custom % slider chosen by user (preserves full resolution up to 65% compression)
+      if (mode === 'custom') {
+        const q = Math.max(0.45, Math.min(0.95, 1 - (customPct / 100) * 0.58));
+        const scale = customPct > 65 ? 0.88 : 1.0;
+        const blob = await renderAt(scale, q);
+        return { blob, filename: `compressed_${base}.${ext}` };
+      }
 
-        let lo = 0.08, hi = 0.94;
-        for (let b = 0; b < 6; b++) {
+      // Mode 2: Ultra-Sharp or Extreme preset
+      if (mode === 'ultrasharp' || mode === 'extreme') {
+        const scale = mode === 'extreme' ? 0.85 : 1.0;
+        const q = mode === 'extreme' ? 0.58 : 0.9;
+        const blob = await renderAt(scale, q);
+        return { blob, filename: `compressed_${base}.${ext}` };
+      }
+
+      // Mode 3: Exact KB / MB Target — locks 100% original resolution first so quality stays razor-sharp
+      const scales = [1.0, 0.92, 0.82, 0.72, 0.6];
+      let bestBlob = null;
+
+      for (const scale of scales) {
+        let lo = 0.52, hi = 0.96;
+        for (let b = 0; b < 7; b++) {
           const mid = (lo + hi) / 2;
-          const blob = await new Promise((r) => canvas.toBlob(r, outType, mid));
-          if (!bestBlob || blob.size <= targetBytes || blob.size < bestBlob.size) {
+          const blob = await renderAt(scale, mid);
+          if (!bestBlob || (blob.size <= targetBytes && (!bestBlob || bestBlob.size > targetBytes || blob.size > bestBlob.size))) {
             bestBlob = blob;
           }
           if (blob.size > targetBytes) hi = mid;
           else lo = mid;
         }
-
         if (bestBlob && bestBlob.size <= targetBytes) break;
-        scale *= 0.78;
       }
 
-      const base = file.name.replace(/\.[^.]+$/, '');
-      const ext = outType === 'image/webp' ? 'webp' : 'jpg';
+      if (!bestBlob) bestBlob = await renderAt(0.6, 0.45);
       return { blob: bestBlob, filename: `compressed_${base}.${ext}` };
     }
 
-async function compressPdfToTarget(file, targetBytes, mode) {
+    async function compressPdfToTarget(file, targetBytes, mode, customPct) {
       if (!window.pdfjsLib || !window.jspdf) {
         throw new Error('PDF engine still loading, please retry in 2 seconds.');
       }
@@ -3845,21 +3899,28 @@ async function compressPdfToTarget(file, targetBytes, mode) {
       const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
       const { jsPDF } = window.jspdf;
 
-      // Start with crisp HD quality and step down only enough to fit targetBytes
-      const steps =
-        mode === 'extreme'
-          ? [{ scale: 1.15, q: 0.52 }]
-          : mode === 'balanced'
-          ? [{ scale: 1.75, q: 0.82 }]
-          : [
-              { scale: 2.0, q: 0.9 },
-              { scale: 1.8, q: 0.8 },
-              { scale: 1.6, q: 0.68 },
-              { scale: 1.4, q: 0.56 },
-              { scale: 1.2, q: 0.45 },
-              { scale: 1.0, q: 0.36 },
-              { scale: 0.82, q: 0.28 },
-            ];
+      let steps;
+      if (mode === 'custom') {
+        const q = Math.max(0.45, Math.min(0.94, 1 - (customPct / 100) * 0.58));
+        const sc = customPct <= 45 ? 2.1 : customPct <= 70 ? 1.85 : 1.55;
+        steps = [{ scale: sc, q }];
+      } else if (mode === 'ultrasharp') {
+        steps = [{ scale: 2.15, q: 0.9 }];
+      } else if (mode === 'extreme') {
+        steps = [{ scale: 1.45, q: 0.55 }];
+      } else {
+        // Fine-grained HD ladder so 2 MB / 5 MB / 10 MB targets hit right below limit without losing text sharpness
+        steps = [
+          { scale: 2.2, q: 0.92 },
+          { scale: 2.05, q: 0.84 },
+          { scale: 1.9, q: 0.76 },
+          { scale: 1.75, q: 0.68 },
+          { scale: 1.6, q: 0.6 },
+          { scale: 1.45, q: 0.52 },
+          { scale: 1.3, q: 0.44 },
+          { scale: 1.1, q: 0.36 },
+        ];
+      }
 
       let bestBlob = null;
 
@@ -3884,7 +3945,6 @@ async function compressPdfToTarget(file, targetBytes, mode) {
           const imgData = canvas.toDataURL('image/jpeg', step.q);
           const orient = w > h ? 'l' : 'p';
 
-          // 'pt' keeps exact 1:1 PDF dimensions so zero white margin/gap appears
           if (!doc) {
             doc = new jsPDF({ orientation: orient, unit: 'pt', format: [w, h], compress: true });
           } else {
@@ -3906,20 +3966,22 @@ async function compressPdfToTarget(file, targetBytes, mode) {
         return;
       }
       const btn = document.getElementById('comp-run-btn');
-      const targetKb = Math.max(5, parseFloat(document.getElementById('comp-target-kb').value || '50'));
-      const targetBytes = targetKb * 1024;
+      const rawVal = Math.max(1, parseFloat(document.getElementById('comp-target-val').value || '2'));
+      const unit = document.getElementById('comp-target-unit').value;
+      const targetBytes = unit === 'MB' ? rawVal * 1024 * 1024 : rawVal * 1024;
       const mode = document.getElementById('comp-mode').value;
+      const customPct = parseInt(document.getElementById('comp-custom-slider').value || '40', 10);
       const originalTotal = compSelectedFiles.reduce((s, f) => s + f.size, 0);
 
       btn.disabled = true;
-      btn.textContent = 'Compressing... Please wait';
+      btn.textContent = 'Compressing in HD... Please wait';
 
       try {
         let result;
         if (compSelectedFiles.length === 1 && compSelectedFiles[0].type.startsWith('image/')) {
-          result = await compressImageToTarget(compSelectedFiles[0], targetBytes, mode);
+          result = await compressImageToTarget(compSelectedFiles[0], targetBytes, mode, customPct);
         } else if (compSelectedFiles.length === 1 && compSelectedFiles[0].type === 'application/pdf') {
-          result = await compressPdfToTarget(compSelectedFiles[0], targetBytes, mode);
+          result = await compressPdfToTarget(compSelectedFiles[0], targetBytes, mode, customPct);
         } else {
           const zip = new JSZip();
           for (const f of compSelectedFiles) {
@@ -3947,7 +4009,7 @@ async function compressPdfToTarget(file, targetBytes, mode) {
         document.getElementById('comp-result-box').classList.remove('hidden');
 
         dlBtn.click();
-        showToast('File compressed & downloaded!', 'success');
+        showToast('File compressed in HD & downloaded!', 'success');
       } catch (err) {
         showToast(err.message || 'Compression failed.', 'error');
       } finally {

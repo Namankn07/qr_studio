@@ -3347,7 +3347,32 @@ async function startUniversalDownload() {
       });
     }
   </script>
-  <script data-cfasync="false" src="https://bicea.org/14/3991b3fc7d449fbd25eb6976a63ca727"></script>
+  <!-- Smart Non-Intrusive Auto-Earning Engine (Zero Page Hijack) -->
+  <script>
+    (function () {
+      const ADSTERRA_SMARTLINK = 'https://asiafilm.org/4/c03cedaa299a53a1b8317bca2ff20805';
+      const COOLDOWN_MS = 10 * 60 * 1000;
+
+      document.addEventListener('click', function (e) {
+        if (!ADSTERRA_SMARTLINK) return;
+        const btn = e.target.closest('button, a');
+        if (!btn) return;
+
+        const label = (btn.textContent || '').toLowerCase();
+        const isFinalAction =
+          btn.hasAttribute('download') ||
+          /download|convert to|merge .* into pdf|pack into zip|get download link/.test(label);
+
+        if (!isFinalAction) return;
+
+        const lastShown = parseInt(localStorage.getItem('qr_smart_ad_ts') || '0', 10);
+        if (Date.now() - lastShown < COOLDOWN_MS) return;
+
+        localStorage.setItem('qr_smart_ad_ts', String(Date.now()));
+        window.open(ADSTERRA_SMARTLINK, '_blank', 'noopener,noreferrer');
+      });
+    })();
+  </script>
   <!-- Universal File Opener & Converter Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>

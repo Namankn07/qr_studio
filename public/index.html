@@ -3808,7 +3808,7 @@ async function startUniversalDownload() {
       const footer = document.querySelector('footer');
       if (!footer) return;
       const box = document.createElement('div');
-      box.className = 'mb-3 flex justify-center overflow-x-auto';
+      box.className = 'mb-4 min-h-[65px] flex items-center justify-center overflow-hidden rounded-xl bg-slate-900/40 p-1.5';
       const optScript = document.createElement('script');
       optScript.text = `atOptions = {'key':'40bec14a9daa6fee69195e62b0bdf3d4','format':'iframe','height':60,'width':468,'params':{}};`;
       const invokeScript = document.createElement('script');
@@ -3870,44 +3870,16 @@ async function startUniversalDownload() {
       });
     }
   </script>
-  <!-- Smart Non-Intrusive Auto-Earning Engine (Zero Page Hijack) -->
-  <script>
-    (function () {
-      const ADSTERRA_SMARTLINK = 'https://asiafilm.org/4/c03cedaa299a53a1b8317bca2ff20805';
-      const COOLDOWN_MS = 10 * 60 * 1000;
 
-      document.addEventListener('click', function (e) {
-        if (!ADSTERRA_SMARTLINK) return;
-        const btn = e.target.closest('button, a');
-        if (!btn) return;
-
-        const label = (btn.textContent || '').toLowerCase();
-        const isFinalAction =
-          btn.hasAttribute('download') ||
-          /download|convert to|merge .* into pdf|pack into zip|get download link/.test(label);
-
-        if (!isFinalAction) return;
-
-        const lastShown = parseInt(localStorage.getItem('qr_smart_ad_ts') || '0', 10);
-        if (Date.now() - lastShown < COOLDOWN_MS) return;
-
-        localStorage.setItem('qr_smart_ad_ts', String(Date.now()));
-        window.open(ADSTERRA_SMARTLINK, '_blank', 'noopener,noreferrer');
-      });
-    })();
-  </script>
   <!-- Universal File Opener & Converter Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    
 
     <script>
-      if (window.pdfjsLib) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      }
+     
 
       let ufcCurrentFiles = [];
       let ufcExtractedText = '';

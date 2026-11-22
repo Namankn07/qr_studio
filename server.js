@@ -868,13 +868,7 @@ ${urlsXml}
 app.get('/scan-result', (req, res) => {
   const fs = require('fs');
   const path = require('path');
-  let adScripts = '';
-  try {
-    const indexHtml = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
-    adScripts = (indexHtml.match(/<script[\s\S]*?<\/script>/gi) || [])
-      .filter((s) => /atOptions|invoke\.js|profitable|effectivegate|adsterra|highperformance/i.test(s))
-      .join('\n');
-  } catch (e) {}
+
 
   res.send(`<!DOCTYPE html>
 <html lang="en" class="dark">
@@ -952,9 +946,18 @@ app.get('/scan-result', (req, res) => {
       </div>
     </div>
 
-    <div class="mt-6 flex justify-center overflow-x-auto">
-      ${adScripts}
-    </div>
+   <footer class="mt-6 min-h-[65px] flex justify-center items-center overflow-x-auto">
+      <script>
+        atOptions = {
+          'key': '40bec14a9daa6fee69195e62b0bdf3d4',
+          'format': 'iframe',
+          'height': 60,
+          'width': 468,
+          'params': {}
+        };
+      </script>
+      <script src="https://www.highperformanceformat.com/40bec14a9daa6fee69195e62b0bdf3d4/invoke.js"></script>
+    </footer>
   </main>
 
   <script>
@@ -1170,7 +1173,7 @@ app.get('/view', (req, res) => {
   const title = (n || 'Shared File').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const isPdf = t === 'pdf' || cloudUrl.toLowerCase().endsWith('.pdf');
   const isVideo = t === 'video' || /\.(mp4|webm|mov|mkv|avi)$/i.test(cloudUrl);
-  const adScriptUrl = (process.env.AD_SCRIPT_URL || '').trim();
+  
 
   const optimizedVideoUrl = isVideo
     ? cloudUrl.replace('/video/upload/', '/video/upload/q_auto,f_auto/')
@@ -1188,9 +1191,7 @@ app.get('/view', (req, res) => {
     mediaMarkup = `<img src="${cloudUrl}" alt="${title}" />`;
   }
 
-  const adTag = adScriptUrl
-    ? `<script async src="${adScriptUrl.replace(/"/g, '&quot;')}"></script>`
-    : '';
+
 
   res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -1198,7 +1199,6 @@ app.get('/view', (req, res) => {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${title} — QR Studio</title>
-  ${adTag}
   <style>
     body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #090d16; color: #f8fafc; display: flex; flex-direction: column; min-height: 100vh; }
     header { padding: 14px 20px; background: #111827; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1f2937; gap: 12px; }
@@ -1225,6 +1225,23 @@ app.get('/view', (req, res) => {
   <main>
     ${mediaMarkup}
   </main>
+  </main>
+
+  <div style="display:flex;justify-content:center;padding:8px 16px;min-height:65px;">
+    <script>
+      atOptions = {
+        'key': '40bec14a9daa6fee69195e62b0bdf3d4',
+        'format': 'iframe',
+        'height': 60,
+        'width': 468,
+        'params': {}
+      };
+    </script>
+    <script src="https://www.highperformanceformat.com/40bec14a9daa6fee69195e62b0bdf3d4/invoke.js"></script>
+  </div>
+
+  <footer>
+    Powered by <a href="/">QR Studio</a> ...
   <footer>
     Powered by <a href="/">QR Studio</a> — Convert any Photo, PDF, Video, or Link into a scannable QR code for free.
   </footer>
